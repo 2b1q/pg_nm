@@ -1,0 +1,22 @@
+{
+    "name": "bankex-payment-gateway-node-manager",
+    "author": "2b1q",
+    "version": "0.0.1",
+    "license": "ISC",
+    "private": true,
+    "scripts": {
+        "start": "nodemon ./bin/app.js"
+    },
+    "dependencies": {
+        "mongodb": "^3.0.10",
+        "cluster": "^0.7.7",
+        "json-parse-safe": "^1.0.5",
+        "moment": "^2.22.2",
+        "node-redis-rpc": "^1.0.8",
+        "nodemon": "^1.18.4",
+        "winston": "^3.0.0"
+    },
+    "devDependencies": {
+        "prettier": "^1.14.0"
+    }
+}
