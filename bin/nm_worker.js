@@ -21,6 +21,8 @@ worker.on("message", ({ payload: msg, w1, w2 }) => {
 
     if (w2) {
         console.log(`${c.green}WORKER[Checker] got MSG\n${c.white}`, msg);
+        require('./checker_worker').sendMsg(msg);
+
     }
 
     // nodeRequest(node_type, method, params)

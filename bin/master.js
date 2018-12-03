@@ -24,18 +24,12 @@ let cluster = require("cluster"),
     { store, color: c } = cfg,
     { redis: redis_cfg, channel } = store;
 
-let worker1_pid; // Scheduler worker PID
-let worker2_pid; // Checker worker PID
-var worker;
-
-// setup PIDS on bootsrtap
-cluster.on("online", _worker => {
-    if (_worker.id === 1) worker1_pid = _worker.process.pid;
-    if (_worker.id === 2) worker2_pid = _worker.process.pid;
-    if (_worker.id === 1 || _worker.id === 2) console.log(c.magenta + "Worker %d " + c.white + "online", _worker.id);
+cluster.on("online", worker => {
+    console.log(c.magenta + "Worker %d " + c.white + "online", worker.id);
 });
 
 // Fork worker process
+var worker;
 let workers = 2; // create 2 workers (Scheduler and Checker)
 for (let i = 0; i < workers; ++i) worker = cluster.fork();
 
@@ -45,12 +39,10 @@ const sendMsgToChecker = payload => worker.send({ payload: payload, w2: true });
 
 //debug
 // console.log(Object.keys(cluster.workers).forEach(key => console.log(key)));
-
 sendMsgToChecker("test 1111111");
 sendMsgToScheduler("hello On start");
 sendMsgToChecker("test 1111111");
-
-setTimeout(() => sendMsgToScheduler("hello after respawn"), 5000);
+setTimeout(() => sendMsgToScheduler("hello after respawn"), 3000);
 
 /** REDIS RPC + cluster RPC chatting behavior */
 const node_rpc_channel = channel.nm("master");
@@ -86,18 +78,7 @@ rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
  * if worker 'disconnect' from IPC channel
  * */
 cluster.on("exit", (deadWorker, code, signal) => {
-    // todo add normal respawner
-
-    if (deadWorker.process.pid === worker1_pid) {
-        console.log("Worker PID %d died. Respawn Scheduler", worker1_pid);
+        console.log("Worker PID %d died. Respawn worker", deadWorker.process.pid);
         worker = cluster.fork();
-        worker1_pid = worker.process.pid;
-        console.log("New Scheduler PID: ", worker1_pid);
-    }
-    if (deadWorker.process.pid === worker2_pid) {
-        console.log("Worker PID %d died. Respawn Checker", worker2_pid);
-        worker = cluster.fork();
-        worker2_pid = worker.process.pid;
-        console.log("New Checker PID: ", worker2_pid);
-    }
+        console.log("New Worker PID: ", worker.process.pid);
 });

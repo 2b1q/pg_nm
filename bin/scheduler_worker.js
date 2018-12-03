@@ -5,15 +5,15 @@ const worker = require("cluster").worker,
 
 const worker_name = "Scheduler";
 
-// handle msg from master
-worker.on("message", msg => {
-    console.log(`${c.green}WORKER[${worker_name}] got MSG\n${c.white}`, msg);
-    // nodeRequest(node_type, method, params)
-    //     .then(node_response => worker.send({
-    //         msg: { ...node_response },
-    //         worker: wid,
-    //         node_type: node_type
-    //     })); // send node_response to master process
-});
-
-setTimeout(() => console.log(ddss), 1000);
+// // handle msg from master
+// worker.on("message", msg => {
+//     console.log(`${c.green}WORKER[${worker_name}] got MSG\n${c.white}`, msg);
+//     // nodeRequest(node_type, method, params)
+//     //     .then(node_response => worker.send({
+//     //         msg: { ...node_response },
+//     //         worker: wid,
+//     //         node_type: node_type
+//     //     })); // send node_response to master process
+// });
+//
+// setTimeout(() => console.log(ddss), 1000);
