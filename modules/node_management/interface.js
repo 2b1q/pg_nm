@@ -1,10 +1,11 @@
 const cfg = require("../../config/config"),
     crypto = require("crypto"),
-    { color: c, api_version: API_VERSION, nodes: nodes_from_file } = cfg,
+    { color: c, api_version: API_VERSION, nodes: nodes_from_file, store: { cols: { nm_nodes: }nodes_col} } = cfg,
     { id: wid } = require("cluster").worker, // access to cluster.worker.id
     db = require("../../libs/db"),
-    { nodeRequest } = require("../node_interaction/node_rpc_client"),
-    nodes_col = "nodes";
+
+         { emit, setRes } = require("../../rpc_interaction/rpc_json-rpc_proxy");
+
 
 // current module
 const _module_ = "Interface module";
@@ -33,6 +34,8 @@ let $node = new Emitter();
 
 /** Observers */
 $node.on("add", node => addNode(node));
+// $node.on("list", node => addNode(node));
+// $node.on("rm", node => addNode(node));
 
 // bootstrap node config
 const bootstrapped_nodes = {};

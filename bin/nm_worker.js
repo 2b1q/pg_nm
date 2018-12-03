@@ -6,32 +6,30 @@
 //     c = cfg.color,
 //     node_proxy = require("../modules/node_interaction/node_rpc_client"),
 //     env = process.env.NODE_ENV;
+const cfg = require("../config/config"),
+    { color: c } = cfg;
+const worker = require("cluster").worker,
+    { id: wid } = worker; // access to cluster.worker.id
+// const wid = require("cluster").worker.id;
+// require(wid === 1 ? "./scheduler_worker" : "./checker_worker");
 
-const { id: wid } = require("cluster").worker; // access to cluster.worker.id
+worker.on("message", ({ payload: msg, w1, w2 }) => {
+    if (w1) {
+        console.log(`${c.green}WORKER[Scheduler] got MSG\n${c.white}`, msg);
+        setTimeout(() => console.log(ddss), 1000);
+    }
 
-/** simple RPC behavior */
-const _channel = 'node_mgmt';
-const redisRpc = require('node-redis-rpc');
-const config = {
-    host: 'redis', // redis server hostname
-    port: 6379,        // redis server port
-    scope: 'test'      // use scope to prevent sharing messages between "node redis rpc"
-};
-const msg = {
-    msg:'hello from '+ _channel,
-    service: _channel
-};
-console.log(`Worker: [${wid}] Init RPC service "${_channel}"`);
-const rpc = new redisRpc(config);
-// RPC handler
-rpc.on(_channel, (data, channel, done) =>{
-    if(data) console.log(`Worker: [${wid}] channel: "${channel}". RPC Data>>>\n`, data);
-    // Trigger done handler to fire back rpc result
-    // - first arg:  error status
-    // - second arg: result data
-    done(null, msg);
+    if (w2) {
+        console.log(`${c.green}WORKER[Checker] got MSG\n${c.white}`, msg);
+    }
+
+    // nodeRequest(node_type, method, params)
+    //     .then(node_response => worker.send({
+    //         msg: { ...node_response },
+    //         worker: wid,
+    //         node_type: node_type
+    //     })); // send node_response to master process
 });
-
 
 // /**
 //  * Setup Node HTTP server
