@@ -33,8 +33,23 @@ var worker;
 let workers = 2; // create 2 workers (Scheduler and Checker)
 for (let i = 0; i < workers; ++i) worker = cluster.fork();
 
-// Send payload to workers wrapper
+/*
+ * Send payload to workers wrapper
+ * pass CMD to Scheduler (cold bootstrap)
+ * > Scheduler worker bootstrap task list to mongo DB
+ * > (then) Scheduler apply tasks
+ * > (then) Scheduler will pass CMD to worker CHECKER every TASK retry time
+ * */
 const sendMsgToScheduler = payload => worker.send({ payload, w1: true });
+/*
+ * Send payload to workers wrapper
+ * pass CMD to Checker (cold bootstrap)
+ * > Checker worker bootstrap CFG from config.js to mongo DB
+ * > Checker handle CMDs from Scheduler and Master
+ *      > (from Scheduler) => run task 'check'
+ *      > (from Master) => bootstrap on cold start
+ *      > (from RPC channel > Master) => runMethod => 'getBestNode'
+ * */
 const sendMsgToChecker = payload => worker.send({ payload, w2: true });
 // message to worker
 const _msg = {
@@ -83,21 +98,9 @@ const messageHandler = ({ error, msg, worker, to, resend }) => {
 // forever message handler from workers
 for (const id in cluster.workers) cluster.workers[id].on("message", messageHandler);
 
-/*
- * pass CMD to Scheduler (cold bootstrap)
- * > Scheduler worker bootstrap task list to mongo DB
- * > (then) Scheduler apply tasks
- * > (then) Scheduler will pass CMD to worker CHECKER every TASK retry time
- * */
+// pass CMD to Scheduler (cold bootstrap)
 sendMsgToScheduler(_msg);
-/*
- * pass CMD to Checker (cold bootstrap)
- * > Checker worker bootstrap CFG from config.js to mongo DB
- * > Checker handle CMDs from Scheduler and Master
- *      > (from Scheduler) => run task 'check'
- *      > (from Master) => bootstrap on cold start
- *      > (from RPC channel > Master) => runMethod => 'getBestNode'
- * */
+// Checker cold bootstrap
 sendMsgToChecker(_msg);
 
 /** REDIS RPC + cluster RPC chatting behavior */
