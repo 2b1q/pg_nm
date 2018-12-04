@@ -3,7 +3,7 @@ const cfg = require("../config/config"),
 const worker = require("cluster").worker,
     { id: wid } = worker; // access to cluster.worker.id
 
-const worker_name = "Scheduler";
+const worker_name = "Task Scheduler";
 
 // // handle msg from master
 // worker.on("message", msg => {
@@ -18,4 +18,4 @@ const worker_name = "Scheduler";
 //
 // setTimeout(() => console.log(ddss), 1000);
 
-exports.sendMsg = msg => console.log(`${c.yellow}WORKER[${worker_name}] got MSG\n${c.white}`, msg);
+exports.sendMsg = msg => console.log(`${c.cyan}WORKER[${c.yellow}${worker_name}${c.cyan}] got MSG${c.white}\n`, msg);

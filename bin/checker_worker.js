@@ -3,7 +3,7 @@ const cfg = require("../config/config"),
     worker = require("cluster").worker,
     { id: wid } = worker; // access to cluster.worker.id
 
-const worker_name = "Checker";
+const worker_name = "Node Checker";
 
 // handle msg from master
 // worker.on("message", msg => {
@@ -16,4 +16,4 @@ const worker_name = "Checker";
 //     //     })); // send node_response to master process
 // });
 
-exports.sendMsg = msg => console.log(`${c.green}WORKER[${worker_name}] got MSG\n${c.white}`, msg);
+exports.sendMsg = msg => console.log(`${c.cyan}WORKER[${c.yellow}${worker_name}${c.cyan}] got MSG${c.white}\n`, msg);
