@@ -4,11 +4,11 @@ const cfg = require("../config/config"),
 
 const worker_name = "Node Checker";
 // worker pattern
-const cmd_ptrn = cmd => `${c.cyan}WORKER[${c.yellow}${worker_name}${c.cyan}] exec cmd [${c.magenta}${cmd}${c.cyan}]${c.white}`;
+const cmd_ptrn = cmd => `${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] exec cmd [${c.magenta}${cmd}${c.cyan}]${c.white}`;
 const cmd_done = (cmd, status) =>
-    `${c.cyan}WORKER[${c.yellow}${worker_name}${c.cyan}] cmd [${c.magenta}${cmd}${c.cyan}] completed!
+    `${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] cmd [${c.magenta}${cmd}${c.cyan}] completed!
     ${c.green}Status: "${status}"${c.white}`;
-const cmd_fail = cmd => `${c.cyan}WORKER[${c.yellow}${worker_name}${c.red}] cmd [${c.magenta}${cmd}${c.red} FAIL!${c.white}`;
+const cmd_fail = cmd => `${c.cyan}worker[${c.yellow}${worker_name}${c.red}] cmd [${c.magenta}${cmd}${c.red} FAIL!${c.white}`;
 // response RPC msg
 const _msg = {
     error: null,
@@ -51,7 +51,7 @@ const checkNodes = () =>
  * common MSG handler entry point
  * */
 exports.sendMsg = msg => {
-    console.log(`${c.cyan}WORKER[${c.yellow}${worker_name}${c.cyan}] handle message${c.white}\n`, msg);
+    console.log(`${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] handle message${c.white}\n`, msg);
     let { cmd, params, from } = msg;
     if (cmd === "bootstrap")
         bootstrap()

@@ -44,11 +44,12 @@ const _msg = {
 };
 
 // MSG handler from WORKER
-const messageHandler = ({ error, msg, worker, to }) => {
-    console.log(
-        `${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got MSG from ${c.magenta}${worker}${c.cyan} to ${c.magenta}${to}${c.cyan} worker${c.white}\n`,
-        { msg, error }
-    );
+const messageHandler = ({ error, msg, worker, to, resend }) => {
+    console.log(`${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got MSG from ${c.yellow}${worker}${c.cyan} to ${c.yellow}${to}${c.cyan} worker${c.white}\n`, {
+        msg,
+        error,
+        resend
+    });
     // handle events to REDIS RPC
     if (to === "redis_rpc") {
         // check error from worker
@@ -68,8 +69,8 @@ const messageHandler = ({ error, msg, worker, to }) => {
         if (error) return console.error(`Master handle ${c.red}ERROR: "${error}"${c.white} from ${worker} worker`);
     }
     // ReRout CMD from worker to another worker
-    if (msg.resend) {
-        let { cmd, params } = msg.resend;
+    if (resend) {
+        let { cmd, params } = resend;
         // construct internal RPC payload
         _msg.from = worker;
         _msg.cmd = cmd;
