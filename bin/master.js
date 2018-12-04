@@ -33,18 +33,26 @@ var worker;
 let workers = 2; // create 2 workers (Scheduler and Checker)
 for (let i = 0; i < workers; ++i) worker = cluster.fork();
 
+// Send payload to workers wrapper
+const sendMsgToScheduler = payload => worker.send({ payload, w1: true });
+const sendMsgToChecker = payload => worker.send({ payload, w2: true });
+// message to worker
+const _msg = {
+    from: "master",
+    cmd: "bootstrap",
+    params: {}
+};
+
 // MSG handler from WORKER
-const messageHandler = ({ msg, worker, to }) => {
+const messageHandler = ({ error, msg, worker, to }) => {
     console.log(
         `${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got MSG from ${c.magenta}${worker}${c.cyan} to ${c.magenta}${to}${c.cyan} worker${c.white}\n`,
-        {
-            msg: msg
-        }
+        { msg, error }
     );
     // handle events to REDIS RPC
     if (to === "redis_rpc") {
         // check error from worker
-        if (msg.error) return done(error);
+        if (error) return done(error);
         // Trigger done handler to fire back rpc result
         // - first arg:  error status
         // - second arg: result data
@@ -56,24 +64,39 @@ const messageHandler = ({ msg, worker, to }) => {
     }
     // handle events to master
     if (to === "master_rpc") {
-        console.log("got internal message from %s worker. MSG:\n", worker, msg);
+        // todo add master error event handler
+        if (error) return console.error(`Master handle ${c.red}ERROR: "${error}"${c.white} from ${worker} worker`);
+    }
+    // ReRout CMD from worker to another worker
+    if (msg.resend) {
+        let { cmd, params } = msg.resend;
+        // construct internal RPC payload
+        _msg.from = worker;
+        _msg.cmd = cmd;
+        _msg.params = params || {};
+        // Rout MSG to workers
+        if (to === "checker") sendMsgToChecker(_msg);
+        if (to === "scheduler") sendMsgToScheduler(_msg);
     }
 };
-// handle message from workers
-for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
+// forever message handler from workers
+for (const id in cluster.workers) cluster.workers[id].on("message", messageHandler);
 
-// Send payload to workers
-const sendMsgToScheduler = payload => worker.send({ payload, w1: true });
-const sendMsgToChecker = payload => worker.send({ payload, w2: true });
-// message to worker
-const _msg = {
-    from: "master",
-    cmd: "bootstrap",
-    params: {}
-};
-// pass CMD to Scheduler (cold bootstrap)
+/*
+ * pass CMD to Scheduler (cold bootstrap)
+ * > Scheduler worker bootstrap task list to mongo DB
+ * > (then) Scheduler apply tasks
+ * > (then) Scheduler will pass CMD to worker CHECKER every TASK retry time
+ * */
 sendMsgToScheduler(_msg);
-// pass CMD to Checker(cold bootstrap)
+/*
+ * pass CMD to Checker (cold bootstrap)
+ * > Checker worker bootstrap CFG from config.js to mongo DB
+ * > Checker handle CMDs from Scheduler and Master
+ *      > (from Scheduler) => run task 'check'
+ *      > (from Master) => bootstrap on cold start
+ *      > (from RPC channel > Master) => runMethod => 'getBestNode'
+ * */
 sendMsgToChecker(_msg);
 
 /** REDIS RPC + cluster RPC chatting behavior */
