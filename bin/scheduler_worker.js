@@ -1,9 +1,14 @@
 const cfg = require("../config/config"),
-    { color: c } = cfg;
-const worker = require("cluster").worker,
-    { id: wid } = worker; // access to cluster.worker.id
+    { color: c } = cfg,
+    worker = require("cluster").worker;
 
 const worker_name = "Task Scheduler";
+// response RPC msg
+const _msg = {
+    error: null,
+    msg: null,
+    worker: worker_name
+};
 
 // // handle msg from master
 // worker.on("message", msg => {

@@ -24,12 +24,43 @@ let cluster = require("cluster"),
     { store, color: c } = cfg,
     { redis: redis_cfg, channel } = store;
 
+const worker_name = "MASTER";
+
 cluster.on("online", worker => console.log(c.magenta + "Worker %d " + c.white + "online", worker.id));
 
 // Fork worker process
 var worker;
 let workers = 2; // create 2 workers (Scheduler and Checker)
 for (let i = 0; i < workers; ++i) worker = cluster.fork();
+
+// MSG handler from WORKER
+const messageHandler = ({ msg, worker, to }) => {
+    console.log(
+        `${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got MSG from ${c.magenta}${worker}${c.cyan} to ${c.magenta}${to}${c.cyan} worker${c.white}\n`,
+        {
+            msg: msg
+        }
+    );
+    // handle events to REDIS RPC
+    if (to === "redis_rpc") {
+        // check error from worker
+        if (msg.error) return done(error);
+        // Trigger done handler to fire back rpc result
+        // - first arg:  error status
+        // - second arg: result data
+        done(null, {
+            msg: msg,
+            worker: worker,
+            channel: node_rpc_channel
+        });
+    }
+    // handle events to master
+    if (to === "master_rpc") {
+        console.log("got internal message from %s worker. MSG:\n", worker, msg);
+    }
+};
+// handle message from workers
+for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
 
 // Send payload to workers
 const sendMsgToScheduler = payload => worker.send({ payload, w1: true });
@@ -62,20 +93,6 @@ rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
     // Rout MSG to workers
     if (to === "checker") sendMsgToChecker(payload);
     if (to === "scheduler") sendMsgToScheduler(payload);
-
-    // MSG handler from WORKER
-    const messageHandler = ({ msg, worker }) => {
-        // check error from worker
-        if (msg.error) return done(error);
-        // Trigger done handler to fire back rpc result
-        // - first arg:  error status
-        // - second arg: result data
-        done(null, {
-            msg: msg,
-            worker: worker,
-            channel: node_rpc_channel
-        });
-    };
     // handle message from worker
     for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
 });
