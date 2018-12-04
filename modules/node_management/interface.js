@@ -1,19 +1,21 @@
 const cfg = require("../../config/config"),
     crypto = require("crypto"),
-    { color: c, api_version: API_VERSION, nodes: nodes_from_file, store: { cols: { nm_nodes: }nodes_col} } = cfg,
+    {
+        color: c,
+        api_version: API_VERSION,
+        store: {
+            cols: { nm_nodes: nodes_col }
+        }
+    } = cfg,
     { id: wid } = require("cluster").worker, // access to cluster.worker.id
-    db = require("../../libs/db"),
-
-         { emit, setRes } = require("../../rpc_interaction/rpc_json-rpc_proxy");
-
+    db = require("../../libs/db");
+// { emit } = require("../../rpc_interaction/rpc_json-rpc_proxy");
 
 // current module
 const _module_ = "Interface module";
 // worker id pattern
 const wid_ptrn = msg =>
-    `${c.green}worker[${wid}]${c.red}[node manager]${c.yellow}[${API_VERSION}]${c.cyan}[${_module_}]${c.red} > ${c.green}[${msg}] ${
-        c.white
-    }`;
+    `${c.green}worker[${wid}]${c.red}[node manager]${c.yellow}[${API_VERSION}]${c.cyan}[${_module_}]${c.red} > ${c.green}[${msg}] ${c.white}`;
 
 /** Observer */
 function Emitter() {
@@ -38,47 +40,57 @@ $node.on("add", node => addNode(node));
 // $node.on("rm", node => addNode(node));
 
 // bootstrap node config
-const bootstrapped_nodes = {};
-Object.keys(nodes_from_file).forEach(type => {
-    if (!bootstrapped_nodes[type + "_nodes"]) bootstrapped_nodes[type + "_nodes"] = [];
-    bootstrapped_nodes[type + "_nodes"].push({
-        type: type,
-        status: "bootstrapping...",
-        nodeHash: "",
-        lastBlock: 0,
-        updateTime: new Date(), // UTC
-        config: nodes_from_file[type]
-    });
-});
+// const bootstrapped_nodes = {};
+// Object.keys(nodes_from_file).forEach(type => {
+//     if (!bootstrapped_nodes[type + "_nodes"]) bootstrapped_nodes[type + "_nodes"] = [];
+//     bootstrapped_nodes[type + "_nodes"].push({
+//         type: type,
+//         status: "bootstrapping...",
+//         nodeHash: "",
+//         lastBlock: 0,
+//         updateTime: new Date(), // UTC
+//         config: nodes_from_file[type]
+//     });
+// });
 
 /*
-* Bootstrap node DB config from scratch config on start (on module require) wid=1
-* 1. get node config from DB
-*  OK => return
-*  FAIL => insert nodes from config
-* 2.
-* */
-wid === 1 &&
-    db
-        .get()
-        .then(db_instance => {
-            console.log(wid_ptrn("Bootstrapping..."));
-            if (!db_instance) return console.error(wid_ptrn("No db instance!"));
-            db_instance
-                .collection(nodes_col)
-                .findOne({})
-                .then(nodes => {
-                    // if nodes === null => addNodes(bootstrapped_nodes)
-                    if (!nodes) addNodes(bootstrapped_nodes);
-                    getLastBlocks();
-                })
-                .catch(e => console.error("Mongo error on bootstrapping nodes: ", e));
-        })
-        .catch(() => console.error(wid_ptrn("connection to MongoDB lost")));
+ * Bootstrap node DB config from scratch config on start (on module require) wid=1
+ * 1. get node config from DB
+ *  OK => return
+ *  FAIL => insert nodes from config
+ * 2.
+ * */
+exports.bootstrapNodes = bootstrapped_nodes =>
+    new Promise((resolve, reject) =>
+        db
+            .get()
+            .then(db_instance => {
+                console.log(wid_ptrn("Bootstrapping..."));
+                if (!db_instance) return console.error(wid_ptrn("No db instance!"));
+                db_instance
+                    .collection(nodes_col)
+                    .findOne({})
+                    .then(nodes => {
+                        // if nodes === null => addNodes(bootstrapped_nodes)
+                        if (!nodes) addNodes(bootstrapped_nodes);
+                        // getLastBlocks();
+                        resolve("DB bootstrap done!");
+                    })
+                    .catch(e => {
+                        console.error("Mongo error on bootstrapping nodes: ", e);
+                        reject(e);
+                    });
+            })
+            .catch(() => {
+                let err = "connection to MongoDB lost";
+                console.error(wid_ptrn(err));
+                reject(err);
+            })
+    );
 
 /*
-* get best BTC node
-* */
+ * get best BTC node
+ * */
 const getBtcNode = () => new Promise((resolve, reject) => {});
 
 /*
@@ -86,25 +98,25 @@ const getBtcNode = () => new Promise((resolve, reject) => {});
  * */
 const getLtcNode = () => new Promise((resolve, reject) => {});
 
-const getLastBlocks = async () => {
-    // cmd:  [ { method: 'getblockcount', params: [] } ]
-    // nodeRequest(type, method, params)
-    try {
-        var _nodes = await getNodes();
-    } catch (e) {
-        return console.error("getLastBlocks error: ", e);
-    }
-    _nodes.forEach(async node =>
-        console.log({
-            ...node,
-            _lastblock: await nodeRequest(node.type, "getblockcount", [])
-        })
-    );
-};
+// const getLastBlocks = async () => {
+//     // cmd:  [ { method: 'getblockcount', params: [] } ]
+//     // nodeRequest(type, method, params)
+//     try {
+//         var _nodes = await getNodes();
+//     } catch (e) {
+//         return console.error("getLastBlocks error: ", e);
+//     }
+//     _nodes.forEach(async node =>
+//         console.log({
+//             ...node,
+//             _lastblock: await nodeRequest(node.type, "getblockcount", [])
+//         })
+//     );
+// };
 
 /*
-* Get all nodes from DB
-* */
+ * Get all nodes from DB
+ * */
 const getNodes = () =>
     new Promise((resolve, reject) =>
         db
@@ -124,8 +136,8 @@ const getNodes = () =>
     );
 
 /*
-* add node Object to DB
-* */
+ * add node Object to DB
+ * */
 const addNode = node => {
     // hash nodeObject
     const nodeHash = crypto

@@ -1,6 +1,8 @@
 const cfg = require("../config/config"),
-    { color: c } = cfg,
-    worker = require("cluster").worker;
+    { color: c, nodes: nodes_from_file } = cfg,
+    worker = require("cluster").worker,
+    { bootstrapNodes } = require("../modules/node_management/interface"),
+    { emit: nodeRequest } = require("../rpc_interaction/rpc_json-rpc_proxy");
 
 const worker_name = "Node Checker";
 // worker pattern
@@ -8,7 +10,7 @@ const cmd_ptrn = cmd => `${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] exe
 const cmd_done = (cmd, status) =>
     `${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] cmd [${c.magenta}${cmd}${c.cyan}] completed!
     ${c.green}Status: "${status}"${c.white}`;
-const cmd_fail = cmd => `${c.cyan}worker[${c.yellow}${worker_name}${c.red}] cmd [${c.magenta}${cmd}${c.red} FAIL!${c.white}`;
+const cmd_fail = (cmd, err) => `${c.cyan}worker[${c.yellow}${worker_name}${c.red}] cmd [${c.magenta}${cmd}${c.red} FAIL! Error:\n${err}${c.white}`;
 // response RPC msg
 const _msg = {
     error: null,
@@ -24,27 +26,50 @@ const _msg = {
 const bootstrap = () =>
     new Promise((resolve, reject) => {
         console.log(cmd_ptrn("bootstrapping node configs"));
-        setTimeout(() => resolve("node config bootstrapped"), 3000);
+        // bootstrap node config
+        const bootstrapped_nodes = {};
+        Object.keys(nodes_from_file).forEach(type => {
+            if (!bootstrapped_nodes[type + "_nodes"]) bootstrapped_nodes[type + "_nodes"] = [];
+            bootstrapped_nodes[type + "_nodes"].push({
+                type: type,
+                status: "bootstrapping...",
+                nodeHash: "",
+                lastBlock: 0,
+                updateTime: new Date(), // UTC
+                config: nodes_from_file[type]
+            });
+        });
+        console.log("bootstrapping nodes:\n", bootstrapped_nodes);
+        bootstrapNodes(bootstrapped_nodes)
+            .then(status => {
+                console.log(cmd_done("bootstrapNodes", status));
+                resolve(status);
+            })
+            .catch(err => reject(err));
     });
 
 /*
- * get Best node executor
+ * get Best node executor with DB behavior
  * */
 const getBestNode = node_type =>
     new Promise((resolve, reject) => {
-        console.log(cmd_ptrn(getBestNode));
+        console.log(cmd_ptrn("getBestNode"));
         if (node_type === "btc") {
             setTimeout(() => resolve("BTC CFFFG"), 2000);
         } else reject("Bad node type");
     });
 
 /*
- * check nodes executor
+ * check nodes executor with redis RPC behavior
  * */
 const checkNodes = () =>
     new Promise((resolve, reject) => {
-        console.log(cmd_ptrn(checkNodes));
-        setTimeout(() => resolve("All nodes checked."), 500);
+        console.log(cmd_ptrn("checkNodes"));
+        // simple LTC checker
+        nodeRequest({
+            node_type: "ltc",
+            method: "getblockcount"
+        }).then(response => resolve(response));
     });
 
 /*
@@ -63,4 +88,16 @@ exports.sendMsg = msg => {
                 _msg.error = e;
                 worker.send(_msg);
             });
+
+    if (cmd === "check")
+        checkNodes()
+            .then(result => {
+                console.log("CHECK result:\n", result);
+                let {
+                    node_type,
+                    msg: { result: lastBlock }
+                } = result;
+                console.log("UPSERT result to DB: ", { node_type, lastBlock });
+            })
+            .catch(err => cmd_fail("checkNodes", err));
 };

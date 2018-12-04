@@ -40,7 +40,7 @@ const addTask = (task, timeout) => {
                 cmd: "check"
             };
             worker.send(_msg);
-            //    clear TO address
+            //    clear TO,MSG
             _msg.to = "master_rpc";
             _msg.msg = null;
         }
