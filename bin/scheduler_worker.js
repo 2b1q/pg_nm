@@ -17,3 +17,5 @@ const worker_name = "Scheduler";
 // });
 //
 // setTimeout(() => console.log(ddss), 1000);
+
+exports.sendMsg = msg => console.log(`${c.yellow}WORKER[${worker_name}] got MSG\n${c.white}`, msg);

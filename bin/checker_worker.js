@@ -1,6 +1,6 @@
 const cfg = require("../config/config"),
-    { color: c } = cfg;
-const worker = require("cluster").worker,
+    { color: c } = cfg,
+    worker = require("cluster").worker,
     { id: wid } = worker; // access to cluster.worker.id
 
 const worker_name = "Checker";
@@ -16,4 +16,4 @@ const worker_name = "Checker";
 //     //     })); // send node_response to master process
 // });
 
-exports.sendMsg = msg => console.log(msg + '=====', worker_name)
+exports.sendMsg = msg => console.log(`${c.green}WORKER[${worker_name}] got MSG\n${c.white}`, msg);

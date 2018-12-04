@@ -24,9 +24,7 @@ let cluster = require("cluster"),
     { store, color: c } = cfg,
     { redis: redis_cfg, channel } = store;
 
-cluster.on("online", worker => {
-    console.log(c.magenta + "Worker %d " + c.white + "online", worker.id);
-});
+cluster.on("online", worker => console.log(c.magenta + "Worker %d " + c.white + "online", worker.id));
 
 // Fork worker process
 var worker;
@@ -34,15 +32,18 @@ let workers = 2; // create 2 workers (Scheduler and Checker)
 for (let i = 0; i < workers; ++i) worker = cluster.fork();
 
 // Send payload to workers
-const sendMsgToScheduler = payload => worker.send({ payload: payload, w1: true });
-const sendMsgToChecker = payload => worker.send({ payload: payload, w2: true });
-
-//debug
-// console.log(Object.keys(cluster.workers).forEach(key => console.log(key)));
-sendMsgToChecker("test 1111111");
-sendMsgToScheduler("hello On start");
-sendMsgToChecker("test 1111111");
-setTimeout(() => sendMsgToScheduler("hello after respawn"), 3000);
+const sendMsgToScheduler = payload => worker.send({ payload, w1: true });
+const sendMsgToChecker = payload => worker.send({ payload, w2: true });
+// message to worker
+const _msg = {
+    from: "master",
+    cmd: "bootstrap",
+    params: {}
+};
+// pass CMD to Scheduler (cold bootstrap)
+sendMsgToScheduler(_msg);
+// pass CMD to Checker(cold bootstrap)
+sendMsgToChecker(_msg);
 
 /** REDIS RPC + cluster RPC chatting behavior */
 const node_rpc_channel = channel.nm("master");
@@ -53,10 +54,17 @@ const rpc = new redisRpc(redis_cfg);
 rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
     if (payload) console.log(`${c.yellow}[MASTER node] channel: "${channel}". RPC Data>>>\n${c.white}`, payload);
     else return done("no payload");
-    // send MSG to Random Worker
-    sendMsgToScheduler(payload);
+    // construct internal RPC payload
+    _msg.from = "Redis RPC channel:" + channel;
+    _msg.cmd = payload.method;
+    _msg.params = payload.params || {};
+    let to = payload.to || "checker"; // 'checker' OR 'scheduler'
+    // Rout MSG to workers
+    if (to === "checker") sendMsgToChecker(payload);
+    if (to === "scheduler") sendMsgToScheduler(payload);
+
     // MSG handler from WORKER
-    const messageHandler = ({ msg, worker, node_type }) => {
+    const messageHandler = ({ msg, worker }) => {
         // check error from worker
         if (msg.error) return done(error);
         // Trigger done handler to fire back rpc result
@@ -65,8 +73,7 @@ rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
         done(null, {
             msg: msg,
             worker: worker,
-            channel: node_rpc_channel,
-            node_type: node_type
+            channel: node_rpc_channel
         });
     };
     // handle message from worker
@@ -78,7 +85,7 @@ rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
  * if worker 'disconnect' from IPC channel
  * */
 cluster.on("exit", (deadWorker, code, signal) => {
-        console.log("Worker PID %d died. Respawn worker", deadWorker.process.pid);
-        worker = cluster.fork();
-        console.log("New Worker PID: ", worker.process.pid);
+    console.error("Worker PID %d died with code %d. Respawn worker", deadWorker.process.pid, code);
+    worker = cluster.fork();
+    console.log("New Worker PID: ", worker.process.pid);
 });
