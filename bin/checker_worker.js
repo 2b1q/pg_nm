@@ -1,8 +1,8 @@
 const cfg = require("../config/config"),
     { color: c, nodes: nodes_from_file } = cfg,
     worker = require("cluster").worker,
-    { bootstrapNodes } = require("../modules/node_management/interface"),
-    { emit: nodeRequest } = require("../rpc_interaction/rpc_json-rpc_proxy");
+    { bootstrapNodes, getLastBlocks } = require("../modules/node_management/interface");
+// { emit: nodeRequest} = require("../rpc_interaction/rpc_json-rpc_proxy");
 
 const worker_name = "Node Checker";
 // worker pattern
@@ -65,11 +65,12 @@ const getBestNode = node_type =>
 const checkNodes = () =>
     new Promise((resolve, reject) => {
         console.log(cmd_ptrn("checkNodes"));
-        // simple LTC checker
-        nodeRequest({
-            node_type: "ltc",
-            method: "getblockcount"
-        }).then(response => resolve(response));
+        getLastBlocks().then(() => resolve("OK"));
+        // // simple LTC checker
+        // nodeRequest({
+        //     node_type: "ltc",
+        //     method: "getblockcount"
+        // }).then(response => resolve(response));
     });
 
 /*

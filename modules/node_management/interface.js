@@ -7,6 +7,7 @@ const cfg = require("../../config/config"),
             cols: { nm_nodes: nodes_col }
         }
     } = cfg,
+    { emit: nodeRequest } = require("../../rpc_interaction/rpc_json-rpc_proxy"),
     { id: wid } = require("cluster").worker, // access to cluster.worker.id
     db = require("../../libs/db");
 // { emit } = require("../../rpc_interaction/rpc_json-rpc_proxy");
@@ -39,22 +40,7 @@ $node.on("add", node => addNode(node));
 // $node.on("list", node => addNode(node));
 // $node.on("rm", node => addNode(node));
 
-// bootstrap node config
-// const bootstrapped_nodes = {};
-// Object.keys(nodes_from_file).forEach(type => {
-//     if (!bootstrapped_nodes[type + "_nodes"]) bootstrapped_nodes[type + "_nodes"] = [];
-//     bootstrapped_nodes[type + "_nodes"].push({
-//         type: type,
-//         status: "bootstrapping...",
-//         nodeHash: "",
-//         lastBlock: 0,
-//         updateTime: new Date(), // UTC
-//         config: nodes_from_file[type]
-//     });
-// });
-
 /*
- * Bootstrap node DB config from scratch config on start (on module require) wid=1
  * 1. get node config from DB
  *  OK => return
  *  FAIL => insert nodes from config
@@ -98,21 +84,29 @@ const getBtcNode = () => new Promise((resolve, reject) => {});
  * */
 const getLtcNode = () => new Promise((resolve, reject) => {});
 
-// const getLastBlocks = async () => {
-//     // cmd:  [ { method: 'getblockcount', params: [] } ]
-//     // nodeRequest(type, method, params)
-//     try {
-//         var _nodes = await getNodes();
-//     } catch (e) {
-//         return console.error("getLastBlocks error: ", e);
-//     }
-//     _nodes.forEach(async node =>
-//         console.log({
-//             ...node,
-//             _lastblock: await nodeRequest(node.type, "getblockcount", [])
-//         })
-//     );
-// };
+exports.getLastBlocks = () =>
+    new Promise(async (resolve, reject) => {
+        // cmd:  [ { method: 'getblockcount', params: [] } ]
+        // nodeRequest(type, method, params)
+        try {
+            var _nodes = await getNodes();
+        } catch (e) {
+            console.error("getLastBlocks error: ", e);
+            return reject(e);
+        }
+        _nodes.forEach(async node =>
+            console.log({
+                ...node,
+                _lastblock: await nodeRequest({ node_type: node.type, method: "getblockcount" })
+            })
+        );
+        resolve("123");
+    });
+
+// nodeRequest({
+//     node_type: "ltc",
+//     method: "getblockcount"
+// }).then(response => resolve(response));
 
 /*
  * Get all nodes from DB
