@@ -1,8 +1,7 @@
 const cfg = require("../config/config"),
     { color: c, nodes: nodes_from_file } = cfg,
     worker = require("cluster").worker,
-    { bootstrapNodes, getLastBlocks } = require("../modules/node_management/interface");
-// { emit: nodeRequest} = require("../rpc_interaction/rpc_json-rpc_proxy");
+    { bootstrapNodes, getLastBlocks, updateNodes } = require("../modules/node_management/interface");
 
 const worker_name = "Node Checker";
 // worker pattern
@@ -65,12 +64,7 @@ const getBestNode = node_type =>
 const checkNodes = () =>
     new Promise((resolve, reject) => {
         console.log(cmd_ptrn("checkNodes"));
-        getLastBlocks().then(() => resolve("OK"));
-        // // simple LTC checker
-        // nodeRequest({
-        //     node_type: "ltc",
-        //     method: "getblockcount"
-        // }).then(response => resolve(response));
+        getLastBlocks().then(lastblocks => resolve(lastblocks));
     });
 
 /*
@@ -94,11 +88,8 @@ exports.sendMsg = msg => {
         checkNodes()
             .then(result => {
                 console.log("CHECK result:\n", result);
-                let {
-                    node_type,
-                    msg: { result: lastBlock }
-                } = result;
-                console.log("UPSERT result to DB: ", { node_type, lastBlock });
+                // update nodes
+                updateNodes(result);
             })
             .catch(err => cmd_fail("checkNodes", err));
 };

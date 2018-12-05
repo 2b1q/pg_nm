@@ -7,7 +7,7 @@ const cfg = require("../../config/config"),
             cols: { nm_nodes: nodes_col }
         }
     } = cfg,
-    { emit: nodeRequest } = require("../../rpc_interaction/rpc_json-rpc_proxy"),
+    { emitUniq: nodeRequest } = require("../../rpc_interaction/rpc_json-rpc_proxy"),
     { id: wid } = require("cluster").worker, // access to cluster.worker.id
     db = require("../../libs/db");
 // { emit } = require("../../rpc_interaction/rpc_json-rpc_proxy");
@@ -37,6 +37,7 @@ let $node = new Emitter();
 
 /** Observers */
 $node.on("add", node => addNode(node));
+$node.on("update", node => updateNode(node));
 // $node.on("list", node => addNode(node));
 // $node.on("rm", node => addNode(node));
 
@@ -56,9 +57,8 @@ exports.bootstrapNodes = bootstrapped_nodes =>
                 db_instance
                     .collection(nodes_col)
                     .findOne({})
-                    .then(nodes => {
-                        // if nodes === null => addNodes(bootstrapped_nodes)
-                        if (!nodes) addNodes(bootstrapped_nodes);
+                    .then(node => {
+                        if (!node) addNodes(bootstrapped_nodes);
                         // getLastBlocks();
                         resolve("DB bootstrap done!");
                     })
@@ -94,19 +94,31 @@ exports.getLastBlocks = () =>
             console.error("getLastBlocks error: ", e);
             return reject(e);
         }
-        _nodes.forEach(async node =>
-            console.log({
-                ...node,
-                _lastblock: await nodeRequest({ node_type: node.type, method: "getblockcount" })
-            })
-        );
-        resolve("123");
+        // construct promise list
+        let p_list = [];
+        await _nodes.map((node, i, arr) => {
+            // construct RPC payload
+            let payload = { node_type: node.type, method: "getblockcount", config: node.config, nodeHash: node.nodeHash };
+            console.log(`${c.magenta}Send request to ${c.yellow}${node.type}${c.magenta} node${c.white}`);
+            p_list.push(nodeRequest(payload));
+            if (i === arr.length - 1) return Promise.resolve();
+        });
+        let lastbloks = [];
+        // resolve all JSON-RPC node requests in parallel
+        await Promise.all(p_list)
+            .then(
+                result =>
+                    (lastbloks = result.map(node =>
+                        Object({
+                            nodeType: node.node_type,
+                            nodeHash: node.nodeHash,
+                            lastBlock: node.msg.result
+                        })
+                    ))
+            )
+            .catch(e => reject(e));
+        resolve(lastbloks);
     });
-
-// nodeRequest({
-//     node_type: "ltc",
-//     method: "getblockcount"
-// }).then(response => resolve(response));
 
 /*
  * Get all nodes from DB
@@ -168,6 +180,48 @@ const addNode = node => {
 };
 
 /*
+ * UPSERT node
+ * */
+const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
+    let status = "online";
+    console.log(
+        wid_ptrn("updateNode"),
+        `
+        node_type: ${c.magenta}${nodeType}${c.white}
+        lastBlock: ${c.cyan}${lastBlock}${c.white}
+        status: ${c.cyan}${status}${c.white}
+        node_hash: ${c.yellow}${nodeHash}${c.white}`
+    );
+    let node = {
+        status,
+        lastBlock,
+        updateTime: new Date() // update dateTime (UTC)
+    };
+    // insert node
+    return db
+        .get()
+        .then(db_instance => {
+            if (!db_instance) {
+                console.error(wid_ptrn("No db instance!"));
+                return false;
+            }
+            db_instance
+                .collection(nodes_col)
+                .updateOne({ nodeHash: nodeHash }, { $set: { ...node } }, { upsert: true })
+                .then(() => {
+                    console.log(wid_ptrn("updateNode"), `\n${c.magenta}${nodeType}${c.yellow} ${nodeHash}${c.green} updated${c.white}`);
+                    return nodeHash;
+                })
+                .catch(e => console.error(wid_ptrn(e)));
+        })
+        .catch(() => console.error(wid_ptrn("connection to MongoDB lost")));
+};
+
+/*
  * add nodes to DB
  * */
 const addNodes = nodes => Object.keys(nodes).forEach(node_type => nodes[node_type].forEach(node => $node.emit("add", node)));
+/*
+ * update nodes
+ * */
+exports.updateNodes = nodes => nodes.forEach(node => $node.emit("update", node));

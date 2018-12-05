@@ -35,3 +35,21 @@ exports.emit = payload =>
             resolve(data);
         });
     });
+
+// Emit uniq request by hash
+exports.emitUniq = payload =>
+    new Promise((resolve, reject) => {
+        console.log(wid_ptrn(`emit uniq payload by nodeHash ${payload.nodeHash}`));
+        rpc.emit(node_rpc_channel, payload, (err, data) => {
+            // catch RPC callbacks only with nodeHash property
+            if (data.hasOwnProperty("nodeHash")) {
+                console.log(wid_ptrn(`got RPC callback with hash ${data.nodeHash}`));
+                if (err) {
+                    console.log(wid_err_ptrn(err));
+                    return reject(err);
+                }
+                // check IF request nodeHash = response nodeHash
+                if (payload.nodeHash == data.nodeHash) resolve(data);
+            }
+        });
+    });

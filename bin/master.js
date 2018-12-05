@@ -2,13 +2,13 @@
 //  - taskBootstrapper (cold start)
 //  - task List
 //  - task applier (on RPC redis MSG (on demand), OR by schedule (every 5 min))
-// todo add Checker (worker 2)
+// Checker (worker 2)
 //  - node CFG bootstrapper (load node cfg from file to DB) (cold start)
 //  - [TASK] checker (exec redis RPC lastblock for all nodes)
 //  - [method] getBestNode
 //  - task runner (check task from list, run task)
-// todo Master RPC handler
-// todo ADD msging with workers trough redis channels (after respawning worker have new pids and IDs)
+// Master RPC handler
+// msging with workers trough redis channels (after respawning worker have new pids and IDs)
 
 /*
  * Master process behavior
@@ -121,7 +121,8 @@ rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
     if (to === "checker") sendMsgToChecker(payload);
     if (to === "scheduler") sendMsgToScheduler(payload);
     // handle message from worker
-    for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
+    cluster.once("message", (worker, message) => messageHandler(message));
+    // for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
 });
 
 /*

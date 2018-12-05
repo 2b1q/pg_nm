@@ -47,7 +47,7 @@ const nodes = {
         port: 8332,
         user: "btcAdapter",
         pass: "AdapterBTC",
-        timeout: 30000
+        timeout: 5000
     },
     ltc: {
         protocol: "http",
@@ -55,7 +55,7 @@ const nodes = {
         port: 9332,
         user: "litecoin",
         pass: "litecoin",
-        timeout: 30000
+        timeout: 5000
     }
 };
 
