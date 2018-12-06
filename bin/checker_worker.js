@@ -73,6 +73,7 @@ const checkNodes = () =>
 exports.sendMsg = msg => {
     console.log(`${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] handle message${c.white}\n`, msg);
     let { cmd, params, from } = msg;
+    // bootstrap CMD handler
     if (cmd === "bootstrap")
         bootstrap()
             .then(result => {
@@ -83,7 +84,7 @@ exports.sendMsg = msg => {
                 _msg.error = e;
                 worker.send(_msg);
             });
-
+    // check node CMD
     if (cmd === "check")
         checkNodes()
             .then(result => {
@@ -92,4 +93,10 @@ exports.sendMsg = msg => {
                 updateNodes(result);
             })
             .catch(err => cmd_fail("checkNodes", err));
+    // getBestNode(type) CMD
+    // getNodes => get all nodes configs
+    // getNodeConfig by ID/nodeHash
+    // addNode(type, config)
+    // rmNode by ID/nodeHash
+    // updateNode by ID/nodeHash
 };

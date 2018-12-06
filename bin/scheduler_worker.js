@@ -24,16 +24,19 @@ const _msg = {
 const bootstrap = () =>
     new Promise((resolve, reject) => {
         console.log(cmd_ptrn("bootstrap task list"));
-        setTimeout(() => resolve("Task List bootstrapped"), 6000);
+        // todo Add real bootstrap behavior from CFG to DB
+        setTimeout(() => resolve("Task List bootstrapped"), 1000);
     });
 
 /*
  * Task registration
+ * - get task by name, timeout and apply to checker worker trough cluster RPC messaging
  * */
 const addTask = (task, timeout) => {
     console.log(cmd_ptrn(`Registering new task "${task}" with timeout ${timeout} ms`));
     setInterval(() => {
         console.log(cmd_ptrn(`EXEC task "${task}"`));
+        // task applier
         if (task === "checkNodes") {
             _msg.to = "checker";
             _msg.resend = {
@@ -53,6 +56,11 @@ const addTask = (task, timeout) => {
 exports.sendMsg = msg => {
     console.log(`${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] handle message${c.white}\n`, msg);
     let { cmd, params, from } = msg;
+    /*
+     * Bootstrap task lists
+     * then apply tasks:
+     * 1. addTask 'checkNodes' with timeout
+     * */
     if (cmd === "bootstrap")
         bootstrap()
             .then(result => {
@@ -60,7 +68,7 @@ exports.sendMsg = msg => {
                 _msg.msg = result;
                 worker.send(_msg);
                 // register new task
-                addTask("checkNodes", 15000);
+                addTask("checkNodes", 500);
             })
             .catch(e => {
                 _msg.error = e;

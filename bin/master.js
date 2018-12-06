@@ -1,24 +1,49 @@
-// todo add Scheduler (worker 1):
-//  - taskBootstrapper (cold start)
-//  - task List
-//  - task applier (on RPC redis MSG (on demand), OR by schedule (every 5 min))
-// Checker (worker 2)
-//  - node CFG bootstrapper (load node cfg from file to DB) (cold start)
-//  - [TASK] checker (exec redis RPC lastblock for all nodes)
-//  - [method] getBestNode
-//  - task runner (check task from list, run task)
-// Master RPC handler
-// msging with workers trough redis channels (after respawning worker have new pids and IDs)
+/*
+ * @Scheduler (worker 1):
+ * 1. handle RPC messages/CMDs from Master node
+ * 2. execute CMDs
+ * CMD executor:
+ * - [cluster RPC CMD] 'bootstrap' => create task list and apply tasks (cold start)
+ * - [cluster RPC CMD] 'taskList'
+ * - [cluster RPC CMD] 'taskStop'
+ * - [cluster RPC CMD] 'taskRun'
+ * - [cluster RPC CMD] 'taskAdd'
+ * Task scheduler:
+ * - addTask to task list
+ * - apply task
+ * - run task
+ * [current tasks]:
+ * 1. check -> check all nodes by timeout (send cluster RPC CMD to worker @checker)
+ * */
 
 /*
- * Master process behavior
- * 0. [MASTER] init RPC channel connection
- * 1. [MASTER] handel RPC channel events
- * 2. [MASTER] pass events to random [WORKER] process
- * 3. [WORKER] do something
- * 4. [MASTER] handle MSG from worker
- * 5. [MASTER] exec RPC callback done(err,data)
+ * @Checker (worker 2)
+ * 1. handle RPC messages/CMDs from Master node
+ * 2. execute CMDs
+ * CMD executor:
+ * - [cluster RPC CMD] 'bootstrap' => node CFG bootstrapper (load node cfg from file to DB) (cold start)
+ * - [cluster RPC CMD] 'check' => checkNode(type, cfg) -> exec RedisRPC to pg_jrpc-proxy -> result will update DB node status
+ * - [cluster RPC CMD] 'getBestNode(type)' -> get best node from DB
+ * - [cluster RPC CMD] 'getNodes' => get all nodes configs from DB
+ * - [cluster RPC CMD] 'getNodeConfig' by ID/nodeHash from DB
+ * - [cluster RPC CMD] 'addNode(type, config)' to DB
+ * - [cluster RPC CMD] 'rmNode by ID/nodeHash' from DB
+ * - [cluster RPC CMD] 'updateNode by ID/nodeHash' in DB
  * */
+
+/*
+ * @Master process behavior
+ * - init cluster workers
+ * - respawn workers on 'die'
+ * 0. [MASTER] init RPC channel connection. Pass CMDs from RedisRPC to workers
+ * 1. [MASTER] handel RPC channel events
+ * 2. [MASTER] pass events to workers using routing
+ * 3. [MASTER] Forward events from worker to worker using routing
+ * 4. [WORKER] do something
+ * 5. [MASTER] handle MSG from worker
+ * 6. [MASTER] exec RPC callback done(err,data)
+ * */
+
 let cluster = require("cluster"),
     cfg = require("../config/config"),
     { store, color: c } = cfg,
