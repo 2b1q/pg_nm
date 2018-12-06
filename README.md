@@ -51,5 +51,5 @@
      - [cluster RPC CMD] `rmNode by ID/nodeHash` from DB
      - [cluster RPC CMD] `updateNode by ID/nodeHash` in DB
 
- ## architecture ##
+## architecture ##
 ![](pg_nm.jpg)
