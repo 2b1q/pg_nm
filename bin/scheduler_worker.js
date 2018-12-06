@@ -68,7 +68,7 @@ exports.sendMsg = msg => {
                 _msg.msg = result;
                 worker.send(_msg);
                 // register new task
-                addTask("checkNodes", 500);
+                addTask("checkNodes", 5000);
             })
             .catch(e => {
                 _msg.error = e;

@@ -25,11 +25,11 @@
      1. handle RPC messages/CMDs from Master node
      2. execute CMDs
      [CMD executor]:
-     - [cluster RPC CMD] 'bootstrap' => create task list and apply tasks (cold start)
-     - [cluster RPC CMD] 'taskList'
-     - [cluster RPC CMD] 'taskStop'
-     - [cluster RPC CMD] 'taskRun'
-     - [cluster RPC CMD] 'taskAdd'
+     - [cluster RPC CMD] `bootstrap` => create task list and apply tasks (cold start)
+     - [cluster RPC CMD] `taskList`
+     - [cluster RPC CMD] `taskStop`
+     - [cluster RPC CMD] `taskRun`
+     - [cluster RPC CMD] `taskAdd`
      [Task scheduler]:
      - addTask to task list
      - apply task
@@ -42,14 +42,14 @@
      1. handle RPC messages/CMDs from Master node
      2. execute CMDs
      [CMD executor]:
-     - [cluster RPC CMD] 'bootstrap' => node CFG bootstrapper (load node cfg from file to DB) (cold start)
-     - [cluster RPC CMD] 'check' => checkNode(type, cfg) -> exec RedisRPC to pg_jrpc-proxy -> result will update DB node status
-     - [cluster RPC CMD] 'getBestNode(type)' -> get best node from DB
-     - [cluster RPC CMD] 'getNodes' => get all nodes configs from DB
-     - [cluster RPC CMD] 'getNodeConfig' by ID/nodeHash from DB
-     - [cluster RPC CMD] 'addNode(type, config)' to DB
-     - [cluster RPC CMD] 'rmNode by ID/nodeHash' from DB
-     - [cluster RPC CMD] 'updateNode by ID/nodeHash' in DB
+     - [cluster RPC CMD] `bootstrap` => node CFG bootstrapper (load node cfg from file to DB) (cold start)
+     - [cluster RPC CMD] `check` => checkNode(type, cfg) -> exec RedisRPC to pg_jrpc-proxy -> result will update DB node status
+     - [cluster RPC CMD] `getBestNode(type)` -> get best node from DB
+     - [cluster RPC CMD] `getNodes` => get all nodes configs from DB
+     - [cluster RPC CMD] `getNodeConfig` by ID/nodeHash from DB
+     - [cluster RPC CMD] `addNode(type, config)` to DB
+     - [cluster RPC CMD] `rmNode by ID/nodeHash` from DB
+     - [cluster RPC CMD] `updateNode by ID/nodeHash` in DB
 
  
 ## architecture ##
