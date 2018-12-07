@@ -76,21 +76,30 @@ const sendMsgToScheduler = payload => worker.send({ payload, w1: true });
  *      > (from RPC channel > Master) => runMethod => 'getBestNode'
  * */
 const sendMsgToChecker = payload => worker.send({ payload, w2: true });
-// message to worker
+// default message to worker 'cmd': 'bootstrap'
 const _msg = {
     from: "master",
     cmd: "bootstrap",
     params: {}
 };
 
-// MSG handler from WORKER
+/*
+ * WORKER message handler wrapper
+ * - handle messages from workers
+ * - route msg from worker to worker
+ * - route msg from worker to Redis RPC
+ * */
 const messageHandler = ({ error, msg, worker, to, resend }) => {
+    // cluster MSG debugger
     console.log(`${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got MSG from ${c.yellow}${worker}${c.cyan} to ${c.yellow}${to}${c.cyan} worker${c.white}\n`, {
         msg,
         error,
         resend
     });
-    // handle events to REDIS RPC
+    /*
+     *  REDIS RPC msg router
+     *  - exec callback done(err, data)
+     * */
     if (to === "redis_rpc") {
         // check error from worker
         if (error) return done(error);
@@ -103,12 +112,19 @@ const messageHandler = ({ error, msg, worker, to, resend }) => {
             channel: node_rpc_channel
         });
     }
-    // handle events to master
+    /*
+     * MASTER msg router
+     * - handle events to master
+     * */
     if (to === "master_rpc") {
         // todo add master error event handler
-        if (error) return console.error(`Master handle ${c.red}ERROR: "${error}"${c.white} from ${worker} worker`);
+        if (error) return console.error(`${c.red}Master handle ERROR: "${error}" from ${worker} worker${c.white}`);
+        console.log(`${c.cyan}Master handle event from worker ${c.yellow}${worker}${c.white}\n`, msg);
     }
-    // ReRout CMD from worker to another worker
+    /*
+     * Worker to Worker msg router
+     * - ReRout CMD from worker to another worker
+     * */
     if (resend) {
         let { cmd, params } = resend;
         // construct internal RPC payload
@@ -130,22 +146,22 @@ sendMsgToChecker(_msg);
 
 /** REDIS RPC + cluster RPC chatting behavior */
 const node_rpc_channel = channel.nm("master");
-const redisRpc = require("node-redis-rpc");
-console.log(`[MASTER node]: Init RPC service "${node_rpc_channel}"`);
-const rpc = new redisRpc(redis_cfg);
-// RPC handler
-rpc.on(node_rpc_channel, ({ payload }, channel, done) => {
-    if (payload) console.log(`${c.yellow}[MASTER node] channel: "${channel}". RPC Data>>>\n${c.white}`, payload);
-    else return done("no payload");
+const redisRpc = new (require("node-redis-rpc"))(redis_cfg);
+console.log(`${c.yellow}[MASTER node]: Init RPC service "${node_rpc_channel}"${c.white}`);
+/*
+ * NM Redis RPC handler
+ * */
+redisRpc.on(node_rpc_channel, ({ to = "checker", method, params }, channel, done) => {
+    if (method) console.log(`${c.yellow}[MASTER node] channel: "${channel}". RPC Data>>>\n${c.white}`, { to, method, params });
+    else return done("payload method required");
     // construct internal RPC payload
     _msg.from = "Redis RPC channel:" + channel;
-    _msg.cmd = payload.method;
-    _msg.params = payload.params || {};
-    let to = payload.to || "checker"; // 'checker' OR 'scheduler'
+    _msg.cmd = method;
+    _msg.params = params || {};
     // Rout MSG to workers
-    if (to === "checker") sendMsgToChecker(payload);
-    if (to === "scheduler") sendMsgToScheduler(payload);
-    // handle message from worker
+    if (to === "checker") sendMsgToChecker(_msg);
+    if (to === "scheduler") sendMsgToScheduler(_msg);
+    // handle messages from workers
     cluster.once("message", (worker, message) => messageHandler(message));
     // for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
 });

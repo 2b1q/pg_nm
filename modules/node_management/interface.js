@@ -10,7 +10,6 @@ const cfg = require("../../config/config"),
     { emitUniq: nodeRequest } = require("../../rpc_interaction/rpc_json-rpc_proxy"),
     { id: wid } = require("cluster").worker, // access to cluster.worker.id
     db = require("../../libs/db");
-// { emit } = require("../../rpc_interaction/rpc_json-rpc_proxy");
 
 // current module
 const _module_ = "Interface module";
@@ -28,20 +27,27 @@ Emitter.prototype.on = function(type, listener) {
     this.events[type].push(listener); // push executor
 };
 // Event emitter
-Emitter.prototype.emit = function(type, arg) {
-    if (this.events[type]) this.events[type].forEach(listener => listener(arg));
+Emitter.prototype.emit = function(type, arg, cb) {
+    if (this.events[type]) this.events[type].forEach(listener => listener(arg, cb));
 };
 
 // Create emitter Object instance
 let $node = new Emitter();
+/*
+ * Export observers Object (emitter Object instance)
+ * - use observer pattern to operations without Promises
+ * */
+exports.$node = $node;
 
 /** Observers */
 $node.on("add", node => addNode(node));
 $node.on("update", node => updateNode(node));
+$node.on("best", (type, callback) => bestNode(type, callback));
 // $node.on("list", node => addNode(node));
 // $node.on("rm", node => addNode(node));
 
 /*
+ * @[Export Promise]
  * 1. get node config from DB
  *  OK => return
  *  FAIL => insert nodes from config
@@ -59,7 +65,6 @@ exports.bootstrapNodes = bootstrapped_nodes =>
                     .findOne({})
                     .then(node => {
                         if (!node) addNodes(bootstrapped_nodes);
-                        // getLastBlocks();
                         resolve("DB bootstrap done!");
                     })
                     .catch(e => {
@@ -75,15 +80,8 @@ exports.bootstrapNodes = bootstrapped_nodes =>
     );
 
 /*
- * get best BTC node
+ * @[Export Promise] getLastBlocks
  * */
-const getBtcNode = () => new Promise((resolve, reject) => {});
-
-/*
- * get best LTC node
- * */
-const getLtcNode = () => new Promise((resolve, reject) => {});
-
 exports.getLastBlocks = () =>
     new Promise(async (resolve, reject) => {
         // cmd:  [ { method: 'getblockcount', params: [] } ]
@@ -121,7 +119,7 @@ exports.getLastBlocks = () =>
     });
 
 /*
- * Get all nodes from DB
+ * (Promise) Get all nodes from DB
  * */
 const getNodes = () =>
     new Promise((resolve, reject) =>
@@ -142,7 +140,46 @@ const getNodes = () =>
     );
 
 /*
- * add node Object to DB
+ * Observer functions
+ * */
+
+/*
+ * @[Observer with callback] get bestNode(type, callback(err,data))
+ * */
+const bestNode = (type, cb) =>
+    db
+        .get()
+        .then(db_instance => {
+            console.log(wid_ptrn(`Get best ${type} node`));
+            if (!db_instance) {
+                let err = "No db instance!";
+                console.error(wid_ptrn(err));
+                return cb(err);
+            }
+            db_instance
+                .collection(nodes_col)
+                .find({ type: type, status: "online" })
+                .sort({ lastBlock: -1 })
+                .limit(1)
+                .toArray((err, [result]) => {
+                    if (err) {
+                        console.error(wid_ptrn(`Mongo error on getBestNode type ${type}`), err);
+                        return cb(err);
+                    }
+                    console.log(wid_ptrn("bestNode"), result);
+                    if (!result) return cb("best node not found"); // return cb(err) if result is undefined
+                    let { config } = result; // destruct config object
+                    cb(null, config); // return callback with config
+                });
+        })
+        .catch(() => {
+            let err = "connection to MongoDB lost";
+            console.error(wid_ptrn(err));
+            cb(err);
+        });
+
+/*
+ * @[Observer function] add node Object to DB
  * */
 const addNode = node => {
     // hash nodeObject
@@ -180,7 +217,8 @@ const addNode = node => {
 };
 
 /*
- * UPSERT node
+ * * @[Observer function] updateNode
+ * UPSERT method
  * */
 const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
     let status = "online";
@@ -218,10 +256,6 @@ const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
 };
 
 /*
- * add nodes to DB
+ * add nodes to DB (Observer emitter)
  * */
 const addNodes = nodes => Object.keys(nodes).forEach(node_type => nodes[node_type].forEach(node => $node.emit("add", node)));
-/*
- * update nodes
- * */
-exports.updateNodes = nodes => nodes.forEach(node => $node.emit("update", node));

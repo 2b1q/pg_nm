@@ -1,7 +1,7 @@
 const cfg = require("../config/config"),
     { color: c, nodes: nodes_from_file } = cfg,
     worker = require("cluster").worker,
-    { bootstrapNodes, getLastBlocks, updateNodes } = require("../modules/node_management/interface");
+    { bootstrapNodes, getLastBlocks, $node } = require("../modules/node_management/interface");
 
 const worker_name = "Node Checker";
 // worker pattern
@@ -87,13 +87,33 @@ exports.sendMsg = msg => {
     // check node CMD
     if (cmd === "check")
         checkNodes()
-            .then(result => {
-                console.log("CHECK result:\n", result);
-                // update nodes
-                updateNodes(result);
+            .then(nodes => {
+                console.log("CHECK result:\n", nodes);
+                // for all nodes EMIT $node >update (Observer pattern)
+                nodes.forEach(node => $node.emit("update", node));
             })
             .catch(err => cmd_fail("checkNodes", err));
     // getBestNode(type) CMD
+    if (cmd === "getBestNode") {
+        const _node_types = ["btc", "ltc", "eth"];
+        let { node_type: type } = params;
+        // check if type passed
+        if (!type) {
+            _msg.error = "node type required";
+            worker.send(_msg);
+        }
+        // check if wrong node type
+        if (!_node_types.includes(type)) {
+            _msg.error = `bad node type ${type}`;
+            worker.send(_msg);
+        }
+        // emit (observer pattern) event with callback(err,data)
+        $node.emit("best", type, (err, config) => {
+            if (err) _msg.error = `on getBestNode ${type} node occurred. \n${err}`;
+            else _msg.msg = config;
+            worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
+        });
+    }
     // getNodes => get all nodes configs
     // getNodeConfig by ID/nodeHash
     // addNode(type, config)
