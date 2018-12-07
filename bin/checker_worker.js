@@ -95,8 +95,10 @@ exports.sendMsg = msg => {
             .catch(err => cmd_fail("checkNodes", err));
     // getBestNode(type) CMD
     if (cmd === "getBestNode") {
+        _msg.to = "redis_rpc"; // set callback response to Redis RPC
         const _node_types = ["btc", "ltc", "eth"];
         let { node_type: type } = params;
+
         // check if type passed
         if (!type) {
             _msg.error = "node type required";

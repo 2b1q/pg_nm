@@ -57,7 +57,7 @@ cluster.on("online", worker => console.log(c.magenta + "Worker %d " + c.white + 
 var worker;
 let workers = 2; // create 2 workers (Scheduler and Checker)
 for (let i = 0; i < workers; ++i) worker = cluster.fork();
-
+let rpc_callback; // keep Redis callback
 /*
  * Send payload to workers wrapper
  * pass CMD to Scheduler (cold bootstrap)
@@ -101,16 +101,21 @@ const messageHandler = ({ error, msg, worker, to, resend }) => {
      *  - exec callback done(err, data)
      * */
     if (to === "redis_rpc") {
-        // check error from worker
-        if (error) return done(error);
-        // Trigger done handler to fire back rpc result
-        // - first arg:  error status
-        // - second arg: result data
-        done(null, {
-            msg: msg,
-            worker: worker,
-            channel: node_rpc_channel
-        });
+        // to avoid double callbacks. exec rpc_callback only once if rpc_callback === "function"
+        if (typeof rpc_callback === "function") {
+            // check error from worker
+            if (error) return rpc_callback(error);
+            console.log(`${c.magenta}[[${c.yellow}${worker_name}${c.magenta}]] Send MSG to ${c.yellow}${to}${c.magenta}${c.white}\n`, msg);
+            // Trigger done handler to fire back rpc result
+            // - first arg:  error status
+            // - second arg: result data
+            rpc_callback(null, {
+                msg: msg,
+                worker: worker,
+                channel: node_rpc_channel
+            });
+            rpc_callback = null; // clear CB after each exec
+        }
     }
     /*
      * MASTER msg router
@@ -137,7 +142,8 @@ const messageHandler = ({ error, msg, worker, to, resend }) => {
     }
 };
 // forever message handler from workers
-for (const id in cluster.workers) cluster.workers[id].on("message", messageHandler);
+// for (const id in cluster.workers) cluster.workers[id].once("message", messageHandler);
+cluster.on("message", (worker, message) => messageHandler(message));
 
 // pass CMD to Scheduler (cold bootstrap)
 sendMsgToScheduler(_msg);
@@ -151,9 +157,11 @@ console.log(`${c.yellow}[MASTER node]: Init RPC service "${node_rpc_channel}"${c
 /*
  * NM Redis RPC handler
  * */
-redisRpc.on(node_rpc_channel, ({ to = "checker", method, params }, channel, done) => {
-    if (method) console.log(`${c.yellow}[MASTER node] channel: "${channel}". RPC Data>>>\n${c.white}`, { to, method, params });
-    else return done("payload method required");
+redisRpc.on(node_rpc_channel, ({ payload }, channel, done) => {
+    console.log(`${c.yellow}[MASTER node] channel: "${channel}". RPC Data>>>\n${c.white}`, payload);
+    let { to = "checker", method, params } = payload;
+    if (!method) return done("payload method required");
+    rpc_callback = done;
     // construct internal RPC payload
     _msg.from = "Redis RPC channel:" + channel;
     _msg.cmd = method;
