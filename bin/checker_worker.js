@@ -116,7 +116,25 @@ exports.sendMsg = msg => {
             worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
         });
     }
-    // getNodes => get all nodes configs
+    // list => get all nodes configs
+    if (cmd === "list") {
+        _msg.to = "redis_rpc"; // set callback response to Redis RPC
+        const _node_types = ["btc", "ltc", "eth", "all"];
+        let { node_type: type } = params;
+        // if type not passed, type = 'all'
+        if (!type) type = "all";
+        // check if wrong node type
+        if (!_node_types.includes(type)) {
+            _msg.error = `bad node type ${type}`;
+            worker.send(_msg);
+        }
+        // emit (observer pattern) event with callback(err,data)
+        $node.emit("list", type, (err, result) => {
+            if (err) _msg.error = `on listNodes ${type} node occurred. \n${err}`;
+            else _msg.msg = result;
+            worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
+        });
+    }
     // getNodeConfig by ID/nodeHash
     // addNode(type, config)
     // rmNode by ID/nodeHash

@@ -43,7 +43,7 @@ exports.$node = $node;
 $node.on("add", node => addNode(node));
 $node.on("update", node => updateNode(node));
 $node.on("best", (type, callback) => bestNode(type, callback));
-// $node.on("list", node => addNode(node));
+$node.on("list", (type, callback) => listNodes(type, callback));
 // $node.on("rm", node => addNode(node));
 
 /*
@@ -142,6 +142,40 @@ const getNodes = () =>
 /*
  * Observer functions
  * */
+
+/*
+ * @[Observer with callback]  listNodes(type, callback(err,data))
+ * */
+const listNodes = (type, cb) =>
+    db
+        .get()
+        .then(db_instance => {
+            let query = type === "all" ? {} : { type: type };
+            console.log(wid_ptrn(`List ${type} nodes`));
+            if (!db_instance) {
+                let err = "No db instance!";
+                console.error(wid_ptrn(err));
+                return cb(err);
+            }
+            db_instance
+                .collection(nodes_col)
+                .find(query)
+                .sort({ lastBlock: -1 })
+                .toArray((err, result) => {
+                    if (err) {
+                        console.error(wid_ptrn(`Mongo error on listNodes type ${type}`), err);
+                        return cb(err);
+                    }
+                    console.log(wid_ptrn("listNodes"), result);
+                    if (!result) return cb("listNodes empty"); // return cb(err) if result is undefined
+                    cb(null, result); // return callback with result
+                });
+        })
+        .catch(() => {
+            let err = "connection to MongoDB lost";
+            console.error(wid_ptrn(err));
+            cb(err);
+        });
 
 /*
  * @[Observer with callback] get bestNode(type, callback(err,data))
