@@ -104,7 +104,11 @@ const messageHandler = ({ error, msg, worker, to, resend }) => {
         // to avoid double callbacks. exec rpc_callback only once if rpc_callback === "function"
         if (typeof rpc_callback === "function") {
             // check error from worker
-            if (error) return rpc_callback(error);
+            if (error) {
+                rpc_callback(error); // exec Redis RPC callback
+                rpc_callback = null; // clear CB after each exec (avoid double callbacks)
+                return console.error("RPC callback error:\n", error); // stop flow
+            }
             console.log(`${c.magenta}[[${c.yellow}${worker_name}${c.magenta}]] Send MSG to ${c.yellow}${to}${c.magenta}${c.white}\n`, msg);
             // Trigger done handler to fire back rpc result
             // - first arg:  error status
@@ -114,7 +118,7 @@ const messageHandler = ({ error, msg, worker, to, resend }) => {
                 worker: worker,
                 channel: node_rpc_channel
             });
-            rpc_callback = null; // clear CB after each exec
+            rpc_callback = null; // clear CB after each exec (avoid double callbacks)
         }
     }
     /*

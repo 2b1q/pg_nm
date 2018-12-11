@@ -73,6 +73,8 @@ const checkNodes = () =>
 exports.sendMsg = msg => {
     console.log(`${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] handle message${c.white}\n`, msg);
     let { cmd, params, from } = msg;
+    // clear msg.error before each CMD
+    _msg.error = null;
     // bootstrap CMD handler
     if (cmd === "bootstrap")
         bootstrap()
@@ -102,12 +104,12 @@ exports.sendMsg = msg => {
         // check if type passed
         if (!type) {
             _msg.error = "node type required";
-            worker.send(_msg);
+            return worker.send(_msg);
         }
         // check if wrong node type
         if (!_node_types.includes(type)) {
             _msg.error = `bad node type ${type}`;
-            worker.send(_msg);
+            return worker.send(_msg);
         }
         // emit (observer pattern) event with callback(err,data)
         $node.emit("best", type, (err, config) => {
@@ -126,7 +128,7 @@ exports.sendMsg = msg => {
         // check if wrong node type
         if (!_node_types.includes(type)) {
             _msg.error = `bad node type ${type}`;
-            worker.send(_msg);
+            return worker.send(_msg);
         }
         // emit (observer pattern) event with callback(err,data)
         $node.emit("list", type, (err, result) => {
