@@ -92,7 +92,7 @@ exports.sendMsg = msg => {
             .then(nodes => {
                 console.log("CHECK result:\n", nodes);
                 // for all nodes EMIT $node >update (Observer pattern)
-                nodes.forEach(node => $node.emit("update", node));
+                nodes.forEach(node => $node.emit("updateLastBlock", node));
             })
             .catch(err => cmd_fail("checkNodes", err));
     // getBestNode(type) CMD
@@ -137,8 +137,9 @@ exports.sendMsg = msg => {
             worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
         });
     }
-    // getNodeConfig by ID/nodeHash
-    // addNode(type, config)
+    // todo getNodeConfig by ID/nodeHash
+    // add checks to this RPC getNodeConfig controller
+    // todo addNode(type, config)
     // rmNode by ID/nodeHash
     // updateNode by ID/nodeHash
 };

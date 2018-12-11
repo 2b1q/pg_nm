@@ -1,5 +1,5 @@
 const cfg = require("../config/config"),
-    { color: c } = cfg,
+    { color: c, checkTimeout } = cfg,
     worker = require("cluster").worker;
 
 const worker_name = "Task Scheduler";
@@ -59,7 +59,7 @@ exports.sendMsg = msg => {
     /*
      * Bootstrap task lists
      * then apply tasks:
-     * 1. addTask 'checkNodes' with timeout
+     * 1. addTask 'checkNodes' with timeout checkTimeout
      * */
     if (cmd === "bootstrap")
         bootstrap()
@@ -68,7 +68,7 @@ exports.sendMsg = msg => {
                 _msg.msg = result;
                 worker.send(_msg);
                 // register new task
-                addTask("checkNodes", 30000);
+                addTask("checkNodes", checkTimeout);
             })
             .catch(e => {
                 _msg.error = e;

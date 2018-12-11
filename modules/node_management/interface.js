@@ -40,10 +40,12 @@ let $node = new Emitter();
 exports.$node = $node;
 
 /** Observers */
-$node.on("add", node => addNode(node));
-$node.on("update", node => updateNode(node));
+$node.on("addBootstrap", node => addNodeOnBootstrap(node));
+$node.on("updateLastBlock", node => updateNodeBlock(node));
 $node.on("best", (type, callback) => bestNode(type, callback));
 $node.on("list", (type, callback) => listNodes(type, callback));
+$node.on("add", (node, callback) => addNode(node, callback)); // untested
+$node.on("get", (hid, callback) => getNode(hid, callback)); // untested
 // $node.on("rm", node => addNode(node));
 
 /*
@@ -178,6 +180,43 @@ const listNodes = (type, cb) =>
         });
 
 /*
+ * @[Observer with callback]  getNode(hash, callback(err,data))
+ * get node by hash or id
+ * eg
+ * "_id":"5c07884e9fc4e94a5db9dc9f", // length 24
+ * "nodeHash":"96d72d068200a9fc0104dd43a10030d2858a0e0525cd3eecb9a89226e00b8cb6", // length 64
+ * */
+const getNode = (hid, cb) =>
+    db
+        .get()
+        .then(db_instance => {
+            let query = (hid.length === 24) === "all" ? { _id: hid } : { nodeHash: hid };
+            console.log(wid_ptrn(`getNode by query: `), query);
+            if (!db_instance) {
+                let err = "No db instance!";
+                console.error(wid_ptrn(err));
+                return cb(err);
+            }
+            db_instance
+                .collection(nodes_col)
+                .findOne(query)
+                .then(result => {
+                    console.log(wid_ptrn("getNode"), result);
+                    if (!result) return cb("getNode empty"); // return cb(err) if result is undefined
+                    cb(null, result); // return callback with result
+                })
+                .catch(e => {
+                    console.error(wid_ptrn(`Mongo error on getNode `), e);
+                    return cb(e);
+                });
+        })
+        .catch(() => {
+            let err = "connection to MongoDB lost";
+            console.error(wid_ptrn(err));
+            cb(err);
+        });
+
+/*
  * @[Observer with callback] get bestNode(type, callback(err,data))
  * */
 const bestNode = (type, cb) =>
@@ -213,16 +252,18 @@ const bestNode = (type, cb) =>
         });
 
 /*
- * @[Observer function] add node Object to DB
+ * @[Observer with callback] addNode(type, callback(err,data))
+ * addNode with callback
+ * from RPC API
  * */
-const addNode = node => {
+const addNode = (node, cb) => {
     // hash nodeObject
     const nodeHash = crypto
         .createHmac("sha256", "(@)_(@)")
         .update(JSON.stringify(node.config))
         .digest("hex");
     console.log(
-        wid_ptrn("addNode"),
+        wid_ptrn("addNode exec"),
         `
         node_type: ${c.magenta}${node.type}${c.white}
         node_stat: ${c.cyan}${node.status}${c.white}
@@ -231,8 +272,54 @@ const addNode = node => {
     node.nodeHash = nodeHash; // add node hash property
     node.updateTime = new Date(); // update dateTime (UTC)
     // insert node
-    return db
-        .get()
+    db.get()
+        .then(db_instance => {
+            if (!db_instance) {
+                let err = "No db instance!";
+                console.error(wid_ptrn(err));
+                return cb(err);
+            }
+            db_instance
+                .collection(nodes_col)
+                .updateOne({ nodeHash: nodeHash }, { $set: { ...node } }, { upsert: true })
+                .then(() => {
+                    console.log(wid_ptrn("addNode done"), `\n${c.magenta}${node.type}${c.yellow} ${nodeHash}${c.green} inserted${c.white}`);
+                    return cb(null, nodeHash);
+                })
+                .catch(e => {
+                    console.error(wid_ptrn(e));
+                    return cb(e);
+                });
+        })
+        .catch(() => {
+            let err = "connection to MongoDB lost";
+            console.error(wid_ptrn(err));
+            cb(err);
+        });
+};
+
+/*
+ * @[Observer function] add node Object to DB on bootstrap
+ * add node on bootstrap
+ * no callback
+ * */
+const addNodeOnBootstrap = node => {
+    // hash nodeObject
+    const nodeHash = crypto
+        .createHmac("sha256", "(@)_(@)")
+        .update(JSON.stringify(node.config))
+        .digest("hex");
+    console.log(
+        wid_ptrn("addNodeOnBootstrap exec"),
+        `
+        node_type: ${c.magenta}${node.type}${c.white}
+        node_stat: ${c.cyan}${node.status}${c.white}
+        node_hash: ${c.yellow}${nodeHash}${c.white}`
+    );
+    node.nodeHash = nodeHash; // add node hash property
+    node.updateTime = new Date(); // update dateTime (UTC)
+    // insert node
+    db.get()
         .then(db_instance => {
             if (!db_instance) {
                 console.error(wid_ptrn("No db instance!"));
@@ -242,7 +329,7 @@ const addNode = node => {
                 .collection(nodes_col)
                 .updateOne({ nodeHash: nodeHash }, { $set: { ...node } }, { upsert: true })
                 .then(() => {
-                    console.log(wid_ptrn("addNode"), `\n${c.magenta}${node.type}${c.yellow} ${nodeHash}${c.green} inserted${c.white}`);
+                    console.log(wid_ptrn("addNodeOnBootstrap done"), `\n${c.magenta}${node.type}${c.yellow} ${nodeHash}${c.green} inserted${c.white}`);
                     return nodeHash;
                 })
                 .catch(e => console.error(wid_ptrn(e)));
@@ -254,10 +341,10 @@ const addNode = node => {
  * * @[Observer function] updateNode
  * UPSERT method
  * */
-const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
+const updateNodeBlock = ({ nodeType, nodeHash, lastBlock }) => {
     let status = "online";
     console.log(
-        wid_ptrn("updateNode"),
+        wid_ptrn("updateNodeBlock exec"),
         `
         node_type: ${c.magenta}${nodeType}${c.white}
         lastBlock: ${c.cyan}${lastBlock}${c.white}
@@ -270,8 +357,7 @@ const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
         updateTime: new Date() // update dateTime (UTC)
     };
     // insert node
-    return db
-        .get()
+    db.get()
         .then(db_instance => {
             if (!db_instance) {
                 console.error(wid_ptrn("No db instance!"));
@@ -281,7 +367,7 @@ const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
                 .collection(nodes_col)
                 .updateOne({ nodeHash: nodeHash }, { $set: { ...node } }, { upsert: true })
                 .then(() => {
-                    console.log(wid_ptrn("updateNode"), `\n${c.magenta}${nodeType}${c.yellow} ${nodeHash}${c.green} updated${c.white}`);
+                    console.log(wid_ptrn("updateNodeBlock done"), `\n${c.magenta}${nodeType}${c.yellow} ${nodeHash}${c.green} updated${c.white}`);
                     return nodeHash;
                 })
                 .catch(e => console.error(wid_ptrn(e)));
@@ -291,5 +377,6 @@ const updateNode = ({ nodeType, nodeHash, lastBlock }) => {
 
 /*
  * add nodes to DB (Observer emitter)
+ * no callbacks
  * */
-const addNodes = nodes => Object.keys(nodes).forEach(node_type => nodes[node_type].forEach(node => $node.emit("add", node)));
+const addNodes = nodes => Object.keys(nodes).forEach(node_type => nodes[node_type].forEach(node => $node.emit("addBootstrap", node)));

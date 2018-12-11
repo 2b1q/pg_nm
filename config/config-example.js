@@ -61,6 +61,7 @@ const nodes = {
 
 /** Staging (default) environment */
 config.staging = {
+    checkTimeout: 30000, // nodes lastblock check timeOut (ms)
     nodes: nodes,
     api_version: api_version,
     errors: errors,
@@ -96,6 +97,7 @@ config.production = {};
 
 /** Dev environment */
 config.dev = {
+    checkTimeout: 30000, // nodes lastblock check timeOut (ms)
     nodes: nodes,
     api_version: api_version,
     errors: errors,
