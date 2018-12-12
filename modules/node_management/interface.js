@@ -1,5 +1,6 @@
 const cfg = require("../../config/config"),
     crypto = require("crypto"),
+    ObjectId = require("mongodb").ObjectId,
     {
         color: c,
         api_version: API_VERSION,
@@ -190,7 +191,8 @@ const getNode = (hid, cb) =>
     db
         .get()
         .then(db_instance => {
-            let query = (hid.length === 24) === "all" ? { _id: hid } : { nodeHash: hid };
+            // polymorphic query constructor
+            let query = hid.length === 24 ? { _id: ObjectId(hid) } : { nodeHash: hid };
             console.log(wid_ptrn(`getNode by query: `), query);
             if (!db_instance) {
                 let err = "No db instance!";
@@ -202,7 +204,7 @@ const getNode = (hid, cb) =>
                 .findOne(query)
                 .then(result => {
                     console.log(wid_ptrn("getNode"), result);
-                    if (!result) return cb("getNode empty"); // return cb(err) if result is undefined
+                    if (!result) return cb("not found"); // return cb(err) if result is undefined
                     cb(null, result); // return callback with result
                 })
                 .catch(e => {

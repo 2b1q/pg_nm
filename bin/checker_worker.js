@@ -100,7 +100,6 @@ exports.sendMsg = msg => {
         _msg.to = "redis_rpc"; // set callback response to Redis RPC
         const _node_types = ["btc", "ltc", "eth"];
         let { node_type: type } = params;
-
         // check if type passed
         if (!type) {
             _msg.error = "node type required";
@@ -123,8 +122,11 @@ exports.sendMsg = msg => {
         _msg.to = "redis_rpc"; // set callback response to Redis RPC
         const _node_types = ["btc", "ltc", "eth", "all"];
         let { node_type: type } = params;
-        // if type not passed, type = 'all'
-        if (!type) type = "all";
+        // check if type passed
+        if (!type) {
+            _msg.error = "node type required";
+            return worker.send(_msg);
+        }
         // check if wrong node type
         if (!_node_types.includes(type)) {
             _msg.error = `bad node type ${type}`;
@@ -137,8 +139,29 @@ exports.sendMsg = msg => {
             worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
         });
     }
-    // todo getNodeConfig by ID/nodeHash
-    // add checks to this RPC getNodeConfig controller
+    // get node config by node hash OR node Id (getNodeConfig by ID/nodeHash)
+    if (cmd === "get") {
+        _msg.to = "redis_rpc"; // set callback response to Redis RPC
+        let { hid } = params;
+        // check if hid passed
+        if (!hid) {
+            _msg.error = "node hid required";
+            return worker.send(_msg);
+        }
+        console.log("hid.length: ", hid.length);
+        // check hid by length
+        if (hid.length !== 64 && hid.length !== 24) {
+            _msg.error = `bad hid ${hid}. Use NodeHash or NodeId`;
+            return worker.send(_msg);
+        }
+        // emit (observer pattern) event with callback(err,data)
+        $node.emit("get", hid, (err, result) => {
+            if (err) _msg.error = `on get Node by hid "${hid}". Error: ${err}`;
+            else _msg.msg = result;
+            worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
+        });
+    }
+
     // todo addNode(type, config)
     // rmNode by ID/nodeHash
     // updateNode by ID/nodeHash

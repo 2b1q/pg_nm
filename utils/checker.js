@@ -31,6 +31,10 @@ const check_module_singleton = (() => {
             res.status(status);
             res.json(msg);
         };
+        // check node hash OR node ID
+        const nodeHashIdCheck = hid => /[^a-f0-9]+/g.test(hid);
+        // check node hash OR id passed
+        const isNodeHash = hid => (hid.length() === 64 ? true : false);
         // check hash from client request
         let check_Hash = chash => (chash.length === 64 ? true : false);
         // check addr from client request
@@ -122,7 +126,9 @@ const check_module_singleton = (() => {
             checkHash: chash => check_Hash(chash), // check hash from client request
             checkAddr: caddr => check_addr(caddr), // check address from client request
             block: block => check_block(block), // check block from client request
-            addr: (address, res) => check_addr_exist(address, res) // check IS address exists from client request
+            addr: (address, res) => check_addr_exist(address, res), // check IS address exists from client request
+            nodeHashId: hid => nodeHashIdCheck(hid), // check node hash or ID using regexp
+            isNodeHash: hid => isNodeHash(hid) // check is HID => node hash
         };
     };
     return {
