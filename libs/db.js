@@ -10,7 +10,7 @@ let dsn = `mongodb://${dbuser}:${dbpass}@${uri}/${dbname}`;
  * build connection as normal user
  * save DB instance reference
  * */
-const buildConnection = () =>
+const buildConnection = (resolve, reject) =>
     MongoClient.connect(
         dsn,
         options
@@ -18,12 +18,12 @@ const buildConnection = () =>
         .then(client => {
             db = client.db(dbname);
             console.log(`${c.green}[i] connected to MongoDB ${c.magenta}mongodb://${uri}/${dbname}${c.white}`);
-            resolve(db);
+            if (resolve) resolve(db);
         })
         .catch(e => {
             db = null; // clear bad reference to "DB instance object"
             console.error(`${c.red}Failed connect to DB:\n${c.yellow}${e}${c.white}`);
-            reject(e);
+            if (reject) reject(e);
         });
 
 /** get DB instance Promise */
@@ -36,7 +36,7 @@ exports.get = () =>
                     db = null; // clear bad reference to "DB instance object"
                     reject(e);
                 });
-        } else buildConnection();
+        } else buildConnection(resolve, reject);
     });
 
 /** check DB connection under pgw user */
