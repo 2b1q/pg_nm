@@ -6,6 +6,26 @@ let db = null, // reference to db
     c = cfg.color;
 let dsn = `mongodb://${dbuser}:${dbpass}@${uri}/${dbname}`;
 
+/*
+ * build connection as normal user
+ * save DB instance reference
+ * */
+const buildConnection = () =>
+    MongoClient.connect(
+        dsn,
+        options
+    )
+        .then(client => {
+            db = client.db(dbname);
+            console.log(`${c.green}[i] connected to MongoDB ${c.magenta}mongodb://${uri}/${dbname}${c.white}`);
+            resolve(db);
+        })
+        .catch(e => {
+            db = null; // clear bad reference to "DB instance object"
+            console.error(`${c.red}Failed connect to DB:\n${c.yellow}${e}${c.white}`);
+            reject(e);
+        });
+
 /** get DB instance Promise */
 exports.get = () =>
     new Promise((resolve, reject) => {
@@ -16,22 +36,7 @@ exports.get = () =>
                     db = null; // clear bad reference to "DB instance object"
                     reject(e);
                 });
-        } else {
-            MongoClient.connect(
-                dsn,
-                options
-            )
-                .then(client => {
-                    db = client.db(dbname);
-                    console.log(`${c.green}[i] connected to MongoDB ${c.magenta}mongodb://${uri}/${dbname}${c.white}`);
-                    resolve(db);
-                })
-                .catch(e => {
-                    db = null; // clear bad reference to "DB instance object"
-                    console.error(`${c.red}Failed connect to DB:\n${c.yellow}${e}${c.white}`);
-                    reject(e);
-                });
-        }
+        } else buildConnection();
     });
 
 /** check DB connection under pgw user */
@@ -49,9 +54,12 @@ if (!db) {
             .then(client => {
                 let pgwdb = client.db(dbname);
                 addUser(pgwdb)
-                    .then(() => {})
+                    .then(() => {
+                        console.log(`${c.green}[i] User: ${c.magenta}${dbuser}${c.green} created successfully!${c.white}`);
+                        client.close(); // Close the root connection
+                        buildConnection(); // build normal DB connection reference
+                    })
                     .catch(({ errmsg }) => console.error(errmsg));
-                // client.close(); // Close the connection
             })
             .catch(e => console.error(`${c.red}[E] DB user create Failed. ${c.white}`, e.errmsg));
     });
