@@ -127,7 +127,7 @@ config.dev = {
 };
 /** END OF Dev environment */
 
-    // Determine passed ENV
+// Determine passed ENV
 const currentEnv = typeof process.env.NODE_ENV == "string" ? process.env.NODE_ENV.toLowerCase() : "";
 
 // Check ENV to export (if ENV not passed => default ENV is 'staging')

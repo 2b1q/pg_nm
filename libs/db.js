@@ -51,7 +51,7 @@ if (!db) {
                 addUser(pgwdb)
                     .then(() => {})
                     .catch(({ errmsg }) => console.error(errmsg));
-                client.close(); // Close the connection
+                // client.close(); // Close the connection
             })
             .catch(e => console.error(`${c.red}[E] DB user create Failed. ${c.white}`, e.errmsg));
     });
