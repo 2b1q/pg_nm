@@ -348,12 +348,13 @@ const addNodeOnBootstrap = node => {
 const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
     let status = lastBlock ? "online" : "down"; // if lastBlock null (from check) => set status to down
     error = error ? error : ""; // if error undefined => set error to empty string
+    let color_status = status === "online" ? `${c.green}${status}${c.white}` : `${c.red}${status}${c.white}`;
     console.log(
         wid_ptrn("updateNodeBlock exec"),
         `
         node_type: ${c.magenta}${nodeType}${c.white}
         lastBlock: ${c.cyan}${lastBlock}${c.white}
-        status: ${c.cyan}${status}${c.white}
+        status: ${color_status}
         node_hash: ${c.yellow}${nodeHash}${c.white}`
     );
     let node = {
