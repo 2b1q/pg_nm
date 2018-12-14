@@ -113,7 +113,8 @@ exports.getLastBlocks = () =>
                         Object({
                             nodeType: node.node_type,
                             nodeHash: node.nodeHash,
-                            lastBlock: node.msg.result
+                            lastBlock: node.msg.result,
+                            error: node.msg.error
                         })
                     ))
             )
@@ -320,6 +321,7 @@ const addNodeOnBootstrap = node => {
     );
     node.nodeHash = nodeHash; // add node hash property
     node.updateTime = new Date(); // update dateTime (UTC)
+    node.error = ""; // set error to empty string on bootstrap
     // insert node
     db.get()
         .then(db_instance => {
@@ -343,8 +345,9 @@ const addNodeOnBootstrap = node => {
  * * @[Observer function] updateNode
  * UPSERT method
  * */
-const updateNodeBlock = ({ nodeType, nodeHash, lastBlock }) => {
-    let status = "online";
+const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
+    let status = lastBlock ? "online" : "down"; // if lastBlock null (from check) => set status to down
+    error = error ? error : ""; // if error undefined => set error to empty string
     console.log(
         wid_ptrn("updateNodeBlock exec"),
         `
@@ -354,6 +357,7 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock }) => {
         node_hash: ${c.yellow}${nodeHash}${c.white}`
     );
     let node = {
+        error,
         status,
         lastBlock,
         updateTime: new Date() // update dateTime (UTC)
