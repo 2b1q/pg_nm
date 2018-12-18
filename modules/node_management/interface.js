@@ -5,7 +5,7 @@ const cfg = require("../../config/config"),
         color: c,
         api_version: API_VERSION,
         store: {
-            cols: { nm_nodes: nodes_col }
+            cols: { nm_nodes: nodes_col, nm_tasks: tasks_col = "tasks" }
         }
     } = cfg,
     { emitUniq: nodeRequest } = require("../../rpc_interaction/rpc_json-rpc_proxy"),
@@ -32,15 +32,21 @@ Emitter.prototype.emit = function(type, arg, cb) {
     if (this.events[type]) this.events[type].forEach(listener => listener(arg, cb));
 };
 
-// Create emitter Object instance
+/*
+ * Emitters instances
+ * - node (node mgmt interface)
+ * - task (task mgmt interface)
+ * */
 let $node = new Emitter();
+let $task = new Emitter();
 /*
  * Export observers Object (emitter Object instance)
  * - use observer pattern to operations without Promises
  * */
 exports.$node = $node;
+exports.$task = $task;
 
-/** Observers */
+/** node Observers */
 $node.on("addBootstrap", node => addNodeOnBootstrap(node));
 $node.on("updateLastBlock", node => updateNodeBlock(node));
 $node.on("best", (type, callback) => bestNode(type, callback));
@@ -48,6 +54,9 @@ $node.on("list", (type, callback) => listNodes(type, callback));
 $node.on("add", (node, callback) => addNode(node, callback)); // untested
 $node.on("get", (hid, callback) => getNode(hid, callback)); // untested
 // $node.on("rm", node => addNode(node));
+/** task Observers */
+$task.on("list", callback => getTasks(callback)); // todo task paused
+$task.on("addBootstrap", task => addTaskOnBootstrap(task)); // todo task paused
 
 /*
  * @[Export Promise]
@@ -149,6 +158,7 @@ const getNodes = () =>
 
 /*
  * @[Observer with callback]  listNodes(type, callback(err,data))
+ * node observer
  * */
 const listNodes = (type, cb) =>
     db
@@ -172,6 +182,39 @@ const listNodes = (type, cb) =>
                     }
                     console.log(wid_ptrn("listNodes"), result);
                     if (!result) return cb("listNodes empty"); // return cb(err) if result is undefined
+                    cb(null, result); // return callback with result
+                });
+        })
+        .catch(() => {
+            let err = "connection to MongoDB lost";
+            console.error(wid_ptrn(err));
+            cb(err);
+        });
+
+/*
+ * @[Observer with callback]  getTasks(callback(err,data))
+ * task observer
+ * */
+const getTasks = cb =>
+    db
+        .get()
+        .then(db_instance => {
+            console.log(wid_ptrn(`List tasks`));
+            if (!db_instance) {
+                let err = "No db instance!";
+                console.error(wid_ptrn(err));
+                return cb(err);
+            }
+            db_instance
+                .collection(tasks_col)
+                .find({})
+                .toArray((err, result) => {
+                    if (err) {
+                        console.error(wid_ptrn(`Mongo error on getTasks `), err);
+                        return cb(err);
+                    }
+                    console.log(wid_ptrn("getTasks"), result);
+                    if (!result) return cb("getTasks empty"); // return cb(err) if result is undefined
                     cb(null, result); // return callback with result
                 });
         })
@@ -335,6 +378,39 @@ const addNodeOnBootstrap = node => {
                 .then(() => {
                     console.log(wid_ptrn("addNodeOnBootstrap done"), `\n${c.magenta}${node.type}${c.yellow} ${nodeHash}${c.green} inserted${c.white}`);
                     return nodeHash;
+                })
+                .catch(e => console.error(wid_ptrn(e)));
+        })
+        .catch(() => console.error(wid_ptrn("connection to MongoDB lost")));
+};
+
+/*
+ * @[Observer function] add task Object to DB on bootstrap
+ * add task on bootstrap
+ * no callback
+ * */
+const addTaskOnBootstrap = task => {
+    console.log(
+        wid_ptrn("addTaskOnBootstrap exec"),
+        `
+        task_name: ${c.magenta}${task.name}${c.white}
+        task_desc: ${c.cyan}${task.desc}${c.white}
+        task_interval: ${c.yellow}${task.timer}${c.white}`
+    );
+    task.updateTime = new Date(); // update dateTime (UTC)
+    task.error = ""; // set error to empty string on bootstrap
+    // insert node
+    db.get()
+        .then(db_instance => {
+            if (!db_instance) {
+                console.error(wid_ptrn("No db instance!"));
+                return false;
+            }
+            db_instance
+                .collection(tasks_col)
+                .updateOne({ name: task.name }, { $set: { ...task } }, { upsert: true })
+                .then(() => {
+                    console.log(wid_ptrn("addTaskOnBootstrap done"), `\n${c.magenta}${task.name}${c.yellow} ${task.timer}${c.green} inserted${c.white}`);
                 })
                 .catch(e => console.error(wid_ptrn(e)));
         })

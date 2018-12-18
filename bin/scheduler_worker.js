@@ -1,5 +1,6 @@
 const cfg = require("../config/config"),
     { color: c, checkTimeout } = cfg,
+    { $task } = require("../modules/node_management/interface"),
     worker = require("cluster").worker;
 
 const worker_name = "Task Scheduler";
@@ -16,6 +17,20 @@ const _msg = {
     worker: worker_name,
     to: "master_rpc" // default MSG go to master
 };
+// initial task list to bootstrap
+const taskList = {
+    check: {
+        desc: "check all nodes task by timer interval",
+        cmd: "check",
+        timer: 10000 // 10 sec default timer
+    }
+};
+// todo bootstrap tasks to DB
+// add clearInterval(taskName); -> to delete task
+// add task CRUD
+Object.keys(taskList).forEach(task => {
+    console.log(`=== Register new task name '${task}' ===`);
+});
 
 /*
  * Scheduler Bootstrap controller

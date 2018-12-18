@@ -161,8 +161,58 @@ exports.sendMsg = msg => {
             worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
         });
     }
+    // todo test  this API
+    if (cmd === "add") {
+        _msg.to = "redis_rpc"; // set callback response to Redis RPC
+        const _node_types = ["btc", "ltc", "eth"];
+        let { config, type } = params;
+        // check if type passed
+        if (!type) {
+            _msg.error = "node 'type' required";
+            return worker.send(_msg);
+        }
+        // check if wrong node type
+        if (!_node_types.includes(type)) {
+            _msg.error = `bad node type ${type}`;
+            return worker.send(_msg);
+        }
+        // check if config passed
+        if (!config) {
+            _msg.error = "node config required";
+            return worker.send(_msg);
+        }
+        // check if config.port passed
+        if (!config.port) {
+            _msg.error = "node config 'port' property required";
+            return worker.send(_msg);
+        }
+        // check if config.host passed
+        if (!config.host) {
+            _msg.error = "node config 'host' property required";
+            return worker.send(_msg);
+        }
+        // check if config.user passed
+        if (!config.user) {
+            _msg.error = "node config 'user' property required";
+            return worker.send(_msg);
+        }
+        // check if config.pass passed
+        if (!config.pass) {
+            _msg.error = "node config 'pass' property required";
+            return worker.send(_msg);
+        }
+        // set default properties
+        config.protocol = config.protocol || "http";
+        config.timeout = config.timeout || 5000;
+        console.log(`add ${type} node config: `, config);
+        // emit (observer pattern) event with callback(err,data)
+        $node.emit("add", { config: { ...config }, type, status: "added from API", error: "", lastBlock: 0 }, (err, result) => {
+            if (err) _msg.error = `on add Node "${type}". Error: ${err}`;
+            else _msg.msg = result;
+            worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
+        });
+    }
 
-    // todo addNode(type, config)
-    // rmNode by ID/nodeHash
-    // updateNode by ID/nodeHash
+    // todo rmNode by ID/nodeHash
+    // todo updateNode by ID/nodeHash
 };
