@@ -51,8 +51,9 @@ $node.on("addBootstrap", node => addNodeOnBootstrap(node));
 $node.on("updateLastBlock", node => updateNodeBlock(node));
 $node.on("best", (type, callback) => bestNode(type, callback));
 $node.on("list", (type, callback) => listNodes(type, callback));
-$node.on("add", (node, callback) => addNode(node, callback)); // untested
-$node.on("get", (hid, callback) => getNode(hid, callback)); // untested
+$node.on("add", (node, callback) => addNode(node, callback));
+$node.on("get", (hid, callback) => getNode(hid, callback));
+$node.on("rm", (hid, callback) => rmNode(hid, callback));
 // $node.on("rm", node => addNode(node));
 /** task Observers */
 $task.on("list", callback => getTasks(callback)); // todo task paused
@@ -253,6 +254,47 @@ const getNode = (hid, cb) =>
                 })
                 .catch(e => {
                     console.error(wid_ptrn(`Mongo error on getNode `), e);
+                    return cb(e);
+                });
+        })
+        .catch(() => {
+            let err = "connection to MongoDB lost";
+            console.error(wid_ptrn(err));
+            cb(err);
+        });
+
+/*
+ * @[Observer with callback]  rmNode(hash, callback(err,data))
+ * remove node by hash or id
+ * eg
+ * "_id":"5c07884e9fc4e94a5db9dc9f", // length 24
+ * "nodeHash":"96d72d068200a9fc0104dd43a10030d2858a0e0525cd3eecb9a89226e00b8cb6", // length 64
+ * */
+const rmNode = (hid, cb) =>
+    db
+        .get()
+        .then(db_instance => {
+            // polymorphic query constructor
+            let query = hid.length === 24 ? { _id: ObjectId(hid) } : { nodeHash: hid };
+            console.log(wid_ptrn(`removeNode by query: `), query);
+            if (!db_instance) {
+                let err = "No db instance!";
+                console.error(wid_ptrn(err));
+                return cb(err);
+            }
+            db_instance
+                .collection(nodes_col)
+                .deleteOne(query)
+                .then(({ result }) => {
+                    let status = `removeNode by hid "${hid}" success`;
+                    console.log(wid_ptrn(status));
+                    cb(null, {
+                        configsRemoved: result.n,
+                        status: "OK"
+                    }); // return callback with result
+                })
+                .catch(e => {
+                    console.error(wid_ptrn(`Mongo error on removeNode `), e);
                     return cb(e);
                 });
         })

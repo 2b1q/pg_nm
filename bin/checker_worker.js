@@ -212,7 +212,27 @@ exports.sendMsg = msg => {
             worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
         });
     }
-
-    // todo rmNode by ID/nodeHash
+    // rmNode by ID/nodeHash
+    if (cmd === "rm") {
+        _msg.to = "redis_rpc"; // set callback response to Redis RPC
+        let { hid } = params;
+        // check if hid passed
+        if (!hid) {
+            _msg.error = "node hid required";
+            return worker.send(_msg);
+        }
+        console.log("hid.length: ", hid.length);
+        // check hid by length
+        if (hid.length !== 64 && hid.length !== 24) {
+            _msg.error = `bad hid ${hid}. Use NodeHash or NodeId`;
+            return worker.send(_msg);
+        }
+        // emit (observer pattern) event with callback(err,data)
+        $node.emit("rm", hid, (err, result) => {
+            if (err) _msg.error = `on remove Node by hid "${hid}". Error: ${err}`;
+            else _msg.msg = result;
+            worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
+        });
+    }
     // todo updateNode by ID/nodeHash
 };
