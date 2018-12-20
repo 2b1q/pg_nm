@@ -9,6 +9,7 @@
     },
     "dependencies": {
         "azure-arm-compute": "^9.1.0",
+        "azure-arm-network": "^11.0.1",
         "cluster": "^0.7.7",
         "json-parse-safe": "^1.0.5",
         "moment": "^2.22.2",

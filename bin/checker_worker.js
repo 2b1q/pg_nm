@@ -3,6 +3,9 @@ const cfg = require("../config/config"),
     worker = require("cluster").worker,
     { bootstrapNodes, getLastBlocks, $node } = require("../modules/node_management/interface");
 
+// debug azure api
+require("../modules/node_management/azure_api");
+
 const worker_name = "Node Checker";
 // worker pattern
 const cmd_ptrn = cmd => `${c.cyan}worker[${c.yellow}${worker_name}${c.cyan}] exec cmd [${c.magenta}${cmd}${c.cyan}]${c.white}`;
