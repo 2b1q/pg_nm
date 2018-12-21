@@ -53,6 +53,7 @@ msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function(e
     // });
 
     const subnetType = ({ id }) => id.split("/").pop();
+    const nodeType = subnetType => subnetType.split("-subnet").shift();
     networkClient.networkInterfaces.list(resourceGroupName, (err, result) => {
         if (err) return console.error('Error on "networkClient.networkInterfaces.list()",\n', err);
         console.log("=========== List network interfaces ===========\n");
@@ -67,6 +68,7 @@ msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function(e
                 console.log("> privateIPAllocationMethod: ", privateIPAllocationMethod);
                 console.log("> name: ", name);
                 console.log("> subnet: ", subnetType(subnet));
+                console.log("> nodeType: ", nodeType(subnetType(subnet)));
             });
         });
     });
