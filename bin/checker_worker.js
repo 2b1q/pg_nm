@@ -1,10 +1,11 @@
 const cfg = require("../config/config"),
     { color: c, nodes: nodes_from_file } = cfg,
     worker = require("cluster").worker,
-    { bootstrapNodes, getLastBlocks, $node } = require("../modules/node_management/interface");
+    { bootstrapNodes, getLastBlocks, $node } = require("../modules/node_management/interface"),
+    { getAzureNodes } = require("../modules/node_management/azure_api");
 
 // debug azure api
-require("../modules/node_management/azure_api");
+// require("../modules/node_management/azure_api");
 
 const worker_name = "Node Checker";
 // worker pattern
@@ -26,7 +27,7 @@ const _msg = {
  * load NODE CFG from config.js to MongoDB
  * */
 const bootstrap = () =>
-    new Promise((resolve, reject) => {
+    new Promise(async (resolve, reject) => {
         console.log(cmd_ptrn("bootstrapping node configs"));
         // bootstrap node config
         const bootstrapped_nodes = {};
@@ -35,11 +36,28 @@ const bootstrap = () =>
             bootstrapped_nodes[type + "_nodes"].push({
                 type: type,
                 status: "bootstrapping...",
+                location: "BKX Lab net",
                 nodeHash: "",
                 lastBlock: 0,
                 updateTime: new Date(), // UTC
                 config: nodes_from_file[type]
             });
+        });
+        // get azure nodes
+        let azure_nodes = await new Promise(resolve =>
+            getAzureNodes((err, nodes) => {
+                console.log(cmd_ptrn("get nodes from Azure"));
+                if (err) {
+                    console.error(err);
+                    return resolve([]);
+                }
+                resolve(nodes);
+            })
+        );
+        // add azure nodes to bootstrapped_nodes object
+        azure_nodes.forEach(azure_node => {
+            if (!bootstrapped_nodes[azure_node.type + "_nodes"]) bootstrapped_nodes[azure_node.type + "_nodes"] = [];
+            bootstrapped_nodes[azure_node.type + "_nodes"].push(azure_node);
         });
         console.log("bootstrapping nodes:\n", bootstrapped_nodes);
         bootstrapNodes(bootstrapped_nodes)

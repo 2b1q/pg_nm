@@ -1,6 +1,6 @@
 /*
  * Azure API
- * - list VMs
+ * - list VMs (using Azure SDK lib "azure-arm-network")
  * */
 // require libs from Azure SDK
 const ComputeManagementClient = require("azure-arm-compute"),
@@ -20,9 +20,75 @@ const subscriptionId = process.env["AZURE_SUBSCRIPTION_ID"] || "2b3c918b-23fc-46
     resourceGroupName = "blockchain-nodes-service",
     vmName = "";
 
+/*
+ * get AzureNodeCB on bootstrap
+ * */
+exports.getAzureNodes = cb =>
+    msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function(err, credentials, subscriptions) {
+        if (err) {
+            console.log(err);
+            return cb(err);
+        }
+        // create NetConnection object to Azure service
+        let networkClient = new NetworkManagementClient(credentials, subscriptionId);
+        // get subnetType helper
+        const subnetType = ({ id }) => id.split("/").pop();
+        // get nodeType helper
+        const nodeType = subnetType => subnetType.split("-subnet").shift();
+        // port helper
+        const nodePort = type => {
+            if (type === "btc") return 8332;
+            if (type === "ltc") return 9332;
+            return 0; // unknown port
+        };
+        networkClient.networkInterfaces.list(resourceGroupName, (err, result) => {
+            if (err) {
+                console.error('Error on "networkClient.networkInterfaces.list()",\n', err);
+                return cb(err);
+            }
+            let nodes = [];
+            console.log("=========== List network interfaces ===========\n");
+            result.forEach((vm, i) => {
+                let { name, ipConfigurations } = vm;
+                console.log(`VM name: ${name}`);
+                console.log("VM ipConfigurations:");
+                ipConfigurations.forEach((ipcfg, ii) => {
+                    let { privateIPAddress, privateIPAllocationMethod, name, subnet } = ipcfg;
+                    console.log("> privateIPAddress: ", privateIPAddress);
+                    console.log("> privateIPAllocationMethod: ", privateIPAllocationMethod);
+                    console.log("> name: ", name);
+                    let { id: location } = subnet;
+                    let type = nodeType(subnetType(subnet));
+                    console.log("> subnet: ", subnetType(subnet));
+                    console.log("> nodeType: ", type);
+                    nodes.push({
+                        type: type,
+                        status: "bootstrapping...",
+                        location: `Azure subnet ${location}`,
+                        nodeHash: "",
+                        lastBlock: 0,
+                        updateTime: new Date(), // UTC
+                        config: {
+                            protocol: "http",
+                            host: privateIPAddress,
+                            port: nodePort(type),
+                            user: type,
+                            pass: type,
+                            timeout: 5000
+                        }
+                    });
+                    // return callback with azure config on last iteration
+                    if (result.length - 1 === i && ipConfigurations.length - 1 === ii) return cb(null, nodes);
+                });
+            });
+        });
+    });
+
+/*
+
 msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function(err, credentials, subscriptions) {
     if (err) return console.log(err);
-    let computeClient = new ComputeManagementClient(credentials, subscriptionId);
+    // let computeClient = new ComputeManagementClient(credentials, subscriptionId);
     let networkClient = new NetworkManagementClient(credentials, subscriptionId);
 
     // Get Information about the vm created in Task1.//
@@ -78,3 +144,4 @@ msRestAzure.loginWithServicePrincipalSecret(clientId, secret, domain, function(e
     // Start the VM
     // computeClient.virtualMachines.start(resourceGroupName, vmName, function(err, result) {});
 });
+*/
