@@ -37,8 +37,9 @@ exports.getAzureNodes = cb =>
         const nodeType = subnetType => subnetType.split("-subnet").shift();
         // port helper
         const nodePort = type => {
-            if (type === "btc") return 8332;
-            if (type === "ltc") return 9332;
+            if (type === "btc") return 8332; // BTC main net
+            if (type === "ltc") return 9332; // LTC main net
+            if (type === "eth") return 8545; // ETH main net
             return 0; // unknown port
         };
         networkClient.networkInterfaces.list(resourceGroupName, (err, result) => {

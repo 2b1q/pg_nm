@@ -72,18 +72,13 @@ exports.bootstrapNodes = bootstrapped_nodes =>
             .get()
             .then(db_instance => {
                 console.log(wid_ptrn("Bootstrapping..."));
-                if (!db_instance) return console.error(wid_ptrn("No db instance!"));
-                db_instance
-                    .collection(nodes_col)
-                    .findOne({})
-                    .then(node => {
-                        if (!node) addNodes(bootstrapped_nodes);
-                        resolve("DB bootstrap done!");
-                    })
-                    .catch(e => {
-                        console.error("Mongo error on bootstrapping nodes: ", e);
-                        reject(e);
-                    });
+                if (!db_instance) {
+                    let err = "No db instance!";
+                    console.error(wid_ptrn(err));
+                    return reject(err);
+                }
+                addNodes(bootstrapped_nodes); // add nodes anyWay
+                resolve("DB bootstrap done!"); // resolve without waiting
             })
             .catch(() => {
                 let err = "connection to MongoDB lost";
@@ -407,6 +402,10 @@ const addNodeOnBootstrap = node => {
     node.nodeHash = nodeHash; // add node hash property
     node.updateTime = new Date(); // update dateTime (UTC)
     node.error = ""; // set error to empty string on bootstrap
+    let nc = node.config;
+    let { host, protocol, port, user, pass } = nc;
+    // cURL check CMD e.g. curl http://172.20.0.6:9332 --data-binary $'{"jsonrpc":"1.0","method":"getblockcount","params":[]}' -u ltc:ltc
+    node.curlCheck = `curl ${protocol}://${host}:${port} --data-binary $'{"jsonrpc":"1.0","method":"getblockcount","params":[]}' -u ${user}:${pass}`;
     // insert node
     db.get()
         .then(db_instance => {

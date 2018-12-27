@@ -36,7 +36,7 @@ const bootstrap = () =>
             bootstrapped_nodes[type + "_nodes"].push({
                 type: type,
                 status: "bootstrapping...",
-                location: "BKX Lab net",
+                location: "BKX Lab net. Testing purpose",
                 nodeHash: "",
                 lastBlock: 0,
                 updateTime: new Date(), // UTC
