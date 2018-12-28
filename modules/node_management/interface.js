@@ -102,10 +102,13 @@ exports.getLastBlocks = () =>
         }
         // construct promise list
         let p_list = [];
-        await _nodes.map((node, i, arr) => {
+        await _nodes.map(({ type, config, nodeHash }, i, arr) => {
             // construct RPC payload
-            let payload = { node_type: node.type, method: "getblockcount", config: node.config, nodeHash: node.nodeHash };
-            console.log(`${c.magenta}Send request to ${c.yellow}${node.type}${c.magenta} node${c.white}`);
+            let payload =
+                type !== "eth"
+                    ? { node_type: type, method: "getblockcount", config: config, nodeHash: nodeHash }
+                    : { node_type: type, method: "eth_blockNumber", config: config, nodeHash: nodeHash };
+            console.log(`${c.magenta}Send request to ${c.yellow}${type}${c.magenta} node${c.white}`);
             p_list.push(nodeRequest(payload));
             if (i === arr.length - 1) return Promise.resolve();
         });
