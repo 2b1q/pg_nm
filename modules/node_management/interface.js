@@ -467,6 +467,7 @@ const addTaskOnBootstrap = task => {
  * */
 const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
     let status = lastBlock ? "online" : "down"; // if lastBlock null (from check) => set status to down
+    lastBlock = lastBlock ? lastBlock : 0; // if lastBlock undefined => set lastBlock = 0
     error = error ? error : ""; // if error undefined => set error to empty string
     let color_status = status === "online" ? `${c.green}${status}${c.white}` : `${c.red}${status}${c.white}`;
     console.log(
@@ -480,7 +481,11 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
     let node = {
         error,
         status,
-        lastBlock,
+        lastBlock: {
+            hex: /0x/.test(lastBlock) ? lastBlock : "", // set original HEX value from ETH node
+            number: typeof lastBlock === "number" ? lastBlock : parseInt(lastBlock, 16), // convert to number
+            etherScan: ""
+        },
         updateTime: new Date() // update dateTime (UTC)
     };
     // insert node

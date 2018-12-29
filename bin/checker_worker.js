@@ -38,7 +38,11 @@ const bootstrap = () =>
                 status: "bootstrapping...",
                 location: "BKX Lab net. Testing purpose",
                 nodeHash: "",
-                lastBlock: 0,
+                lastBlock: {
+                    hex: "",
+                    number: 0,
+                    etherScan: ""
+                },
                 updateTime: new Date(), // UTC
                 config: nodes_from_file[type]
             });
