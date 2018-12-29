@@ -411,7 +411,10 @@ const addNodeOnBootstrap = node => {
     let nc = node.config;
     let { host, protocol, port, user, pass } = nc;
     // cURL check CMD e.g. curl http://172.20.0.6:9332 --data-binary $'{"jsonrpc":"1.0","method":"getblockcount","params":[]}' -u ltc:ltc
-    node.curlCheck = `curl ${protocol}://${host}:${port} --data-binary $'{"jsonrpc":"1.0","method":"getblockcount","params":[]}' -u ${user}:${pass}`;
+    node.curlCheck =
+        node.type !== "eth"
+            ? `curl ${protocol}://${host}:${port} --data-binary $'{"jsonrpc":"1.0","method":"getblockcount","params":[]}' -u ${user}:${pass}`
+            : `curl ${protocol}://${host}:${port} --data-binary $'{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' -u ${user}:${pass} -H "Content-Type: application/json"`;
     // insert node
     db.get()
         .then(db_instance => {
@@ -468,7 +471,7 @@ const addTaskOnBootstrap = task => {
  * * @[Observer function] updateNode
  * UPSERT method
  * */
-const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult, error }) => {
+const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult: etherScan, error }) => {
     let status = lastBlock ? "online" : "down"; // if lastBlock null (from check) => set status to down
     lastBlock = lastBlock ? lastBlock : 0; // if lastBlock undefined => set lastBlock = 0
     error = error ? error : ""; // if error undefined => set error to empty string
@@ -478,7 +481,7 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult, error
         `
         node_type: ${c.magenta}${nodeType}${c.white}
         lastBlock: ${c.cyan}${lastBlock}${c.white}
-        etherScanResult: ${c.cyan}${etherScanResult}${c.white}
+        etherScanResult: ${c.cyan}${etherScan}${c.white}
         status: ${color_status}
         node_hash: ${c.yellow}${nodeHash}${c.white}`
     );
@@ -488,7 +491,7 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult, error
         lastBlock: {
             hex: /0x/.test(lastBlock) ? lastBlock : "", // set original HEX value from ETH node
             number: typeof lastBlock === "number" ? lastBlock : parseInt(lastBlock, 16), // convert to number
-            etherScan: etherScanResult ? etherScanResult : ""
+            etherScan
         },
         updateTime: new Date() // update dateTime (UTC)
     };
