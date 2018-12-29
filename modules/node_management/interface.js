@@ -117,14 +117,17 @@ exports.getLastBlocks = () =>
         await Promise.all(p_list)
             .then(
                 result =>
-                    (lastbloks = result.map(node =>
-                        Object({
-                            nodeType: node.node_type,
-                            nodeHash: node.nodeHash,
-                            lastBlock: node.msg.result,
-                            error: node.msg.error
-                        })
-                    ))
+                    (lastbloks = result.map(({ node_type: nodeType, nodeHash, msg }) => {
+                        let { result: lastBlock, etherScanResult, error } = msg;
+                        let response = Object({
+                            nodeType,
+                            nodeHash,
+                            lastBlock,
+                            etherScanResult,
+                            error
+                        });
+                        return response;
+                    }))
             )
             .catch(e => reject(e));
         resolve(lastbloks);
@@ -465,7 +468,7 @@ const addTaskOnBootstrap = task => {
  * * @[Observer function] updateNode
  * UPSERT method
  * */
-const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
+const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult, error }) => {
     let status = lastBlock ? "online" : "down"; // if lastBlock null (from check) => set status to down
     lastBlock = lastBlock ? lastBlock : 0; // if lastBlock undefined => set lastBlock = 0
     error = error ? error : ""; // if error undefined => set error to empty string
@@ -475,6 +478,7 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
         `
         node_type: ${c.magenta}${nodeType}${c.white}
         lastBlock: ${c.cyan}${lastBlock}${c.white}
+        etherScanResult: ${c.cyan}${etherScanResult}${c.white}
         status: ${color_status}
         node_hash: ${c.yellow}${nodeHash}${c.white}`
     );
@@ -484,7 +488,7 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, error }) => {
         lastBlock: {
             hex: /0x/.test(lastBlock) ? lastBlock : "", // set original HEX value from ETH node
             number: typeof lastBlock === "number" ? lastBlock : parseInt(lastBlock, 16), // convert to number
-            etherScan: ""
+            etherScan: etherScanResult ? etherScanResult : ""
         },
         updateTime: new Date() // update dateTime (UTC)
     };

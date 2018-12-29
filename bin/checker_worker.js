@@ -89,7 +89,9 @@ const getBestNode = node_type =>
 const checkNodes = () =>
     new Promise((resolve, reject) => {
         console.log(cmd_ptrn("checkNodes"));
-        getLastBlocks().then(lastblocks => resolve(lastblocks));
+        getLastBlocks()
+            .then(lastblocks => resolve(lastblocks))
+            .catch(err => cmd_fail("checkNodes", err));
     });
 
 /*
@@ -186,7 +188,7 @@ exports.sendMsg = msg => {
             worker.send(_msg); // send msg to master node (to: "master_rpc" => default MSG go to master)
         });
     }
-    // todo test  this API
+    // cmd 'add'
     if (cmd === "add") {
         _msg.to = "redis_rpc"; // set callback response to Redis RPC
         const _node_types = ["btc", "ltc", "eth"];

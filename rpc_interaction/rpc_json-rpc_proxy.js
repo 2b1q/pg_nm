@@ -49,7 +49,11 @@ exports.emitUniq = payload =>
                     return reject(err);
                 }
                 // check IF request nodeHash = response nodeHash
-                if (payload.nodeHash == data.nodeHash) resolve(data);
+                if (payload.nodeHash == data.nodeHash) {
+                    // debug
+                    console.log(wid_ptrn("CB RPC data:"), "\n", data);
+                    resolve(data);
+                }
             }
         });
     });
