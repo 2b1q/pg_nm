@@ -114,6 +114,7 @@ exports.getLastBlocks = () =>
         });
         let lastbloks = [];
         // resolve all JSON-RPC node requests in parallel
+        // todo refactoring (resolve each one promise do not wait all). Add promise timeouts in JSON-RPC client service
         await Promise.all(p_list)
             .then(
                 result =>
