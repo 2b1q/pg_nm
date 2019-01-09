@@ -87,7 +87,7 @@ const getBestNode = node_type =>
  * check nodes executor with redis RPC behavior
  * */
 const checkNodes = () =>
-    new Promise((resolve, reject) => {
+    new Promise(resolve => {
         console.log(cmd_ptrn("checkNodes"));
         getLastBlocks()
             .then(lastblocks => resolve(lastblocks))
@@ -119,7 +119,7 @@ exports.sendMsg = msg => {
             .then(nodes => {
                 console.log("CHECK result:\n", nodes);
                 // for all nodes EMIT $node >update (Observer pattern)
-                nodes.forEach(node => $node.emit("updateLastBlock", node));
+                // nodes.forEach(node => $node.emit("updateLastBlock", node));
             })
             .catch(err => cmd_fail("checkNodes", err));
     // getBestNode(type) CMD

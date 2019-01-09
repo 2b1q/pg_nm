@@ -89,6 +89,9 @@ exports.bootstrapNodes = bootstrapped_nodes =>
 
 /*
  * @[Export Promise] getLastBlocks
+ * forEach node Type & Config do async JSON-RPC request trough Redis RPC
+ *  > update DB with result from each request
+ *  > resolve getLastBlocks() when all requests are completed
  * */
 exports.getLastBlocks = () =>
     new Promise(async (resolve, reject) => {
@@ -100,37 +103,34 @@ exports.getLastBlocks = () =>
             console.error("getLastBlocks error: ", e);
             return reject(e);
         }
-        // construct promise list
-        let p_list = [];
-        await _nodes.map(({ type, config, nodeHash }, i, arr) => {
-            // construct RPC payload
-            let payload =
-                type !== "eth"
-                    ? { node_type: type, method: "getblockcount", config: config, nodeHash: nodeHash }
-                    : { node_type: type, method: "eth_blockNumber", config: config, nodeHash: nodeHash };
+        // all lastbloks result
+        let lastbloks = [];
+        // forEach node type and config send JSON-RPC trough Redis-RPC
+        await _nodes.forEach(({ type, config, nodeHash }, i, arr) => {
+            // construct common RPC payload
+            let payload = { node_type: type, config: config, nodeHash: nodeHash };
+            // decorate payload
+            payload = type !== "eth" ? { method: "getblockcount", ...payload } : { method: "eth_blockNumber", ...payload };
             console.log(`${c.magenta}Send request to ${c.yellow}${type}${c.magenta} node${c.white}`);
-            p_list.push(nodeRequest(payload));
+            // send async nodeRequest with payload
+            nodeRequest(payload).then(({ node_type: nodeType, nodeHash, msg }) => {
+                // construct result
+                let { result: lastBlock, etherScanResult, error } = msg;
+                let response = Object({
+                    nodeType,
+                    nodeHash,
+                    lastBlock,
+                    etherScanResult,
+                    error
+                });
+                // update DB with response (no callbacks)
+                $node.emit("updateLastBlock", response);
+                // add result response to list
+                lastbloks.push(response);
+            });
+            // resolve promise after all requests got responses
             if (i === arr.length - 1) return Promise.resolve();
         });
-        let lastbloks = [];
-        // resolve all JSON-RPC node requests in parallel
-        // todo refactoring (resolve each one promise do not wait all). Add promise timeouts in JSON-RPC client service
-        await Promise.all(p_list)
-            .then(
-                result =>
-                    (lastbloks = result.map(({ node_type: nodeType, nodeHash, msg }) => {
-                        let { result: lastBlock, etherScanResult, error } = msg;
-                        let response = Object({
-                            nodeType,
-                            nodeHash,
-                            lastBlock,
-                            etherScanResult,
-                            error
-                        });
-                        return response;
-                    }))
-            )
-            .catch(e => reject(e));
         resolve(lastbloks);
     });
 
