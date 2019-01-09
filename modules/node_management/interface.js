@@ -10,6 +10,7 @@ const cfg = require("../../config/config"),
     } = cfg,
     { emitUniq: nodeRequest } = require("../../rpc_interaction/rpc_json-rpc_proxy"),
     { id: wid } = require("cluster").worker, // access to cluster.worker.id
+    timer = name => `${c.yellow}[timer]${c.magenta} ${name}${c.white} Redis RPC RTT`,
     db = require("../../libs/db");
 
 // current module
@@ -112,8 +113,10 @@ exports.getLastBlocks = () =>
             // decorate payload
             payload = type !== "eth" ? { method: "getblockcount", ...payload } : { method: "eth_blockNumber", ...payload };
             console.log(`${c.magenta}Send request to ${c.yellow}${type}${c.magenta} node${c.white}`);
+            console.time(timer(`${type} node [${nodeHash}]`));
             // send async nodeRequest with payload
             nodeRequest(payload).then(({ node_type: nodeType, nodeHash, msg }) => {
+                console.timeEnd(timer(`${type} node [${nodeHash}]`));
                 // construct result
                 let { result: lastBlock, etherScanResult, error } = msg;
                 let response = Object({

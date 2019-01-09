@@ -2,7 +2,8 @@ const cfg = require("../config/config"),
     { color: c, nodes: nodes_from_file } = cfg,
     worker = require("cluster").worker,
     { bootstrapNodes, getLastBlocks, $node } = require("../modules/node_management/interface"),
-    { getAzureNodes } = require("../modules/node_management/azure_api");
+    { getAzureNodes } = require("../modules/node_management/azure_api"),
+    timer = name => `${c.yellow}[timer]${c.magenta} "${name}" ${c.white}total time`;
 
 // debug azure api
 // require("../modules/node_management/azure_api");
@@ -64,8 +65,10 @@ const bootstrap = () =>
             bootstrapped_nodes[azure_node.type + "_nodes"].push(azure_node);
         });
         console.log("bootstrapping nodes:\n", bootstrapped_nodes);
+        console.time(timer("bootstrapping nodes"));
         bootstrapNodes(bootstrapped_nodes)
             .then(status => {
+                console.timeEnd(timer("bootstrapping nodes"));
                 console.log(cmd_done("bootstrapNodes", status));
                 resolve(status);
             })
@@ -114,14 +117,16 @@ exports.sendMsg = msg => {
                 worker.send(_msg);
             });
     // check node CMD
-    if (cmd === "check")
+    if (cmd === "check") {
+        console.time(timer("checkNodes"));
         checkNodes()
             .then(nodes => {
-                console.log("\nCHECK result:\n", nodes);
-                // for all nodes EMIT $node >update (Observer pattern)
-                // nodes.forEach(node => $node.emit("updateLastBlock", node));
+                console.timeEnd(timer("checkNodes"));
+                console.log(c.yellow, "CHECK result:\n", c.blue, nodes, c.white);
             })
             .catch(err => cmd_fail("checkNodes", err));
+    }
+
     // getBestNode(type) CMD
     if (cmd === "getBestNode") {
         _msg.to = "redis_rpc"; // set callback response to Redis RPC
