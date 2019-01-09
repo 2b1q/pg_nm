@@ -117,7 +117,7 @@ exports.sendMsg = msg => {
     if (cmd === "check")
         checkNodes()
             .then(nodes => {
-                console.log("CHECK result:\n", nodes);
+                console.log("\nCHECK result:\n", nodes);
                 // for all nodes EMIT $node >update (Observer pattern)
                 // nodes.forEach(node => $node.emit("updateLastBlock", node));
             })

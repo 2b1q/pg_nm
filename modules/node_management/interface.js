@@ -106,7 +106,7 @@ exports.getLastBlocks = () =>
         // all lastbloks result
         let lastbloks = [];
         // forEach node type and config send JSON-RPC trough Redis-RPC
-        await _nodes.forEach(({ type, config, nodeHash }, i, arr) => {
+        _nodes.forEach(({ type, config, nodeHash }, i, arr) => {
             // construct common RPC payload
             let payload = { node_type: type, config: config, nodeHash: nodeHash };
             // decorate payload
@@ -125,13 +125,11 @@ exports.getLastBlocks = () =>
                 });
                 // update DB with response (no callbacks)
                 $node.emit("updateLastBlock", response);
-                // add result response to list
                 lastbloks.push(response);
+                // resolve promise after all requests got responses
+                if (i === arr.length - 1) return resolve(lastbloks);
             });
-            // resolve promise after all requests got responses
-            if (i === arr.length - 1) return Promise.resolve();
         });
-        resolve(lastbloks);
     });
 
 /*
