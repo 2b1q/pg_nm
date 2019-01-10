@@ -1,47 +1,47 @@
 /*
  * @Scheduler (worker 1):
- * 1. handle RPC messages/CMDs from Master node
+ * 1. handle Redis-RPC messages/CMDs from Master node
  * 2. execute CMDs
  * CMD executor:
- * - [cluster RPC CMD] 'bootstrap' => create task list and apply tasks (cold start)
- * - [cluster RPC CMD] 'taskList'
- * - [cluster RPC CMD] 'taskStop'
- * - [cluster RPC CMD] 'taskRun'
- * - [cluster RPC CMD] 'taskAdd'
+ * - [cluster IPC CMD] 'bootstrap' => create task list and apply tasks (cold start)
+ * - [cluster IPC CMD] 'taskList'
+ * - [cluster IPC CMD] 'taskStop'
+ * - [cluster IPC CMD] 'taskRun'
+ * - [cluster IPC CMD] 'taskAdd'
  * Task scheduler:
  * - addTask to task list
  * - apply task
  * - run task
  * [current tasks]:
- * 1. check -> check all nodes by timeout (send cluster RPC CMD to worker @checker)
+ * 1. check -> check all nodes by timeout (send cluster IPC CMD to worker @checker)
  * */
 
 /*
  * @Checker (worker 2)
- * 1. handle RPC messages/CMDs from Master node
+ * 1. handle IPC messages/CMDs from Master node
  * 2. execute CMDs
  * CMD executor:
- * - [cluster RPC CMD] 'bootstrap' => node CFG bootstrapper (load node cfg from file to DB) (cold start)
- * - [cluster RPC CMD] 'check' => checkNode(type, cfg) -> exec RedisRPC to pg_jrpc-proxy -> result will update DB node status
- * - [cluster RPC CMD] 'getBestNode(type)' -> get best node from DB
- * - [cluster RPC CMD] 'getNodes' => get all nodes configs from DB
- * - [cluster RPC CMD] 'getNodeConfig' by ID/nodeHash from DB
- * - [cluster RPC CMD] 'addNode(type, config)' to DB
- * - [cluster RPC CMD] 'rmNode by ID/nodeHash' from DB
- * - [cluster RPC CMD] 'updateNode by ID/nodeHash' in DB
+ * - [cluster IPC CMD] 'bootstrap' => node CFG bootstrapper (load node cfg from file to DB) (cold start)
+ * - [cluster IPC CMD] 'check' => checkNode(type, cfg) -> exec RedisRPC to pg_jrpc-proxy -> result will update DB node status
+ * - [cluster IPC CMD] 'getBestNode(type)' -> get best node from DB
+ * - [cluster IPC CMD] 'getNodes' => get all nodes configs from DB
+ * - [cluster IPC CMD] 'getNodeConfig' by ID/nodeHash from DB
+ * - [cluster IPC CMD] 'addNode(type, config)' to DB
+ * - [cluster IPC CMD] 'rmNode by ID/nodeHash' from DB
+ * - [cluster IPC CMD] 'updateNode by ID/nodeHash' in DB
  * */
 
 /*
  * @Master process behavior
  * - init cluster workers
  * - respawn workers on 'die'
- * 0. [MASTER] init RPC channel connection. Pass CMDs from RedisRPC to workers
- * 1. [MASTER] handel RPC channel events
- * 2. [MASTER] pass events to workers using routing
- * 3. [MASTER] Forward events from worker to worker using routing
- * 4. [WORKER] do something
- * 5. [MASTER] handle MSG from worker
- * 6. [MASTER] exec RPC callback done(err,data)
+ * 0. [MASTER] init Redis-RPC channel connection. Pass CMDs [using IPC] from [Redis-RPC channel] to workers
+ * 1. [MASTER] handel Redis-RPC channel events
+ * 2. [MASTER] pass events to workers [IPC] using routing
+ * 3. [MASTER] Forward events [using IPC] from worker to worker using routing
+ * 4. [WORKER] do something and send MSG to master [using IPC]
+ * 5. [MASTER] handle [IPC] MSG from worker
+ * 6. [MASTER] exec Redis-RPC callback done(err,data)
  * */
 
 let cluster = require("cluster"),
@@ -91,11 +91,14 @@ const _msg = {
  * */
 const messageHandler = ({ error, msg, worker, to, resend }) => {
     // cluster MSG debugger
-    console.log(`${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got MSG from ${c.yellow}${worker}${c.cyan} to ${c.yellow}${to}${c.cyan} worker${c.white}\n`, {
-        msg,
-        error,
-        resend
-    });
+    console.log(
+        `${c.cyan}[[${c.yellow}${worker_name}${c.cyan}]] got IPC MSG from ${c.yellow}${worker}${c.cyan} to ${c.yellow}${to}${c.cyan} worker${c.white}\n`,
+        {
+            msg,
+            error,
+            resend
+        }
+    );
     /*
      *  REDIS RPC msg router
      *  - exec callback done(err, data)
@@ -154,15 +157,15 @@ sendMsgToScheduler(_msg);
 // Checker cold bootstrap
 sendMsgToChecker(_msg);
 
-/** REDIS RPC + cluster RPC chatting behavior */
+/** REDIS RPC + cluster IPC chatting behavior */
 const node_rpc_channel = channel.nm("master");
 const redisRpc = new (require("node-redis-rpc"))(redis_cfg);
-console.log(`${c.yellow}[MASTER node]: Init RPC service "${node_rpc_channel}"${c.white}`);
+console.log(`${c.yellow}[MASTER node]: Init Redis-RPC service "${node_rpc_channel}"${c.white}`);
 /*
  * NM Redis RPC handler
  * */
 redisRpc.on(node_rpc_channel, ({ payload }, channel, done) => {
-    console.log(`${c.yellow}[MASTER node] channel: "${channel}". RPC Data>>>\n${c.white}`, payload);
+    console.log(`${c.yellow}[MASTER node] channel: "${channel}". Redis-RPC Incoming Data>>>\n${c.white}`, payload);
     let { to = "checker", method, params } = payload;
     if (!method) return done("payload method required");
     rpc_callback = done;
