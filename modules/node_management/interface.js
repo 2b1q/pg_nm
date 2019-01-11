@@ -118,13 +118,14 @@ exports.getLastBlocks = () =>
             nodeRequest(payload).then(({ node_type: nodeType, nodeHash, msg }) => {
                 console.timeEnd(timer(`${type} node [${nodeHash}]`));
                 // construct result
-                let { result: lastBlock, etherScanResult, error } = msg;
+                let { result: lastBlock, etherScanResult, error, duration } = msg;
                 let response = Object({
                     nodeType,
                     nodeHash,
                     lastBlock,
                     etherScanResult,
-                    error
+                    error,
+                    duration
                 });
                 // update DB with response (no callbacks)
                 $node.emit("updateLastBlock", response);
@@ -473,7 +474,7 @@ const addTaskOnBootstrap = task => {
  * * @[Observer function] updateNode
  * UPSERT method
  * */
-const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult: etherScan, error }) => {
+const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult: etherScan, error, duration }) => {
     let status = lastBlock ? "online" : "down"; // if lastBlock null (from check) => set status to down
     lastBlock = lastBlock ? lastBlock : 0; // if lastBlock undefined => set lastBlock = 0
     error = error ? error : ""; // if error undefined => set error to empty string
@@ -485,11 +486,13 @@ const updateNodeBlock = ({ nodeType, nodeHash, lastBlock, etherScanResult: ether
         lastBlock: ${c.cyan}${lastBlock}${c.white}
         etherScanResult: ${c.cyan}${etherScan}${c.white}
         status: ${color_status}
+        duration: ${c.cyan}${duration}${c.white}
         node_hash: ${c.yellow}${nodeHash}${c.white}`
     );
     let node = {
-        error,
-        status,
+        error, // JSON-RPC node error
+        status, // node status
+        duration, // node CMD exec duration
         lastBlock: {
             hex: /0x/.test(lastBlock) ? lastBlock : "", // set original HEX value from ETH node
             number: typeof lastBlock === "number" ? lastBlock : parseInt(lastBlock, 16), // convert to number
